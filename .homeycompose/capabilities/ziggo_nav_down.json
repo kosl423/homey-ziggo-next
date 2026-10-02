@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Omlaag",
+    "nl": "Omlaag"
+  },
+  "uiComponent": "button",
+  "getable": false,
+  "setable": true
+}

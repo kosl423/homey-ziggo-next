@@ -1,0 +1,4 @@
+﻿Protocol reference: homebridge-eosstb by Jan Siegenthaler
+https://github.com/jsiegenthaler/homebridge-eosstb
+
+This project implements the Ziggo NL authentication and set-top-box communication required for the Homey integration, with homebridge-eosstb used as a protocol reference. No source file from that project is bundled here.

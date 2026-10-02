@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Channel Down",
+    "nl": "Zender omlaag"
+  },
+  "getable": false,
+  "setable": true,
+  "uiComponent": "button"
+}

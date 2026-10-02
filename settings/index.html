@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+</head>
+<body>
+
+<header class="homey-header">
+  <h1 class="homey-title">Ziggo Next diagnose</h1>
+  <p class="homey-subtitle">Diagnose-informatie voor de Ziggo Next-verbinding. Geen wachtwoorden of tokenwaarden worden getoond.</p>
+</header>
+
+<button id="refresh" class="homey-button-primary-full">Diagnose verversen</button>
+
+<textarea
+  id="result"
+  readonly
+  style="width:100%;height:55vh;box-sizing:border-box;margin-top:16px;padding:10px;font-family:monospace;white-space:pre;resize:vertical;"
+></textarea>
+
+<br>
+<button id="clear" class="homey-button-secondary-full">Diagnose wissen</button>
+
+<script>
+function onHomeyReady(Homey) {
+  Homey.ready();
+
+  const r = document.getElementById('result');
+
+  function load() {
+    Homey.get('diagnosticLog', (e, v) => {
+      r.value = e
+        ? 'Fout: ' + (e.message || e)
+        : (Array.isArray(v) ? v.join('\n') : 'Nog geen diagnose opgeslagen.');
+    });
+  }
+
+  document.getElementById('refresh').onclick = load;
+
+  document.getElementById('clear').onclick = () =>
+    Homey.set('diagnosticLog', [], e => {
+      if (e) Homey.alert(e.message || e);
+      else load();
+    });
+
+  load();
+}
+</script>
+
+</body>
+</html>

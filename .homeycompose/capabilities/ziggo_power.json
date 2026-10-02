@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Power",
+    "nl": "Aan/uit"
+  },
+  "getable": false,
+  "setable": true,
+  "uiComponent": "button"
+}

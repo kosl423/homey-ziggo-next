@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Omhoog",
+    "nl": "Omhoog"
+  },
+  "uiComponent": "button",
+  "getable": false,
+  "setable": true
+}

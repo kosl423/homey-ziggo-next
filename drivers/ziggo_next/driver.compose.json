@@ -1,0 +1,52 @@
+{
+  "name": {
+    "en": "Ziggo Next Mini",
+    "nl": "Ziggo Next Mini"
+  },
+  "class": "other",
+  "platforms": [
+    "local"
+  ],
+  "connectivity": [
+    "cloud"
+  ],
+  "capabilities": [
+    "onoff",
+    "ziggo_power",
+    "ziggo_channel_up",
+    "ziggo_channel_down",
+    "ziggo_digit_1",
+    "ziggo_digit_2",
+    "ziggo_digit_3",
+    "ziggo_digit_4",
+    "ziggo_digit_5",
+    "ziggo_digit_6",
+    "ziggo_digit_7",
+    "ziggo_digit_8",
+    "ziggo_digit_9",
+    "ziggo_digit_0",
+    "ziggo_ok",
+    "ziggo_back",
+    "ziggo_nav_up",
+    "ziggo_nav_down",
+    "ziggo_nav_left",
+    "ziggo_nav_right"
+  ],
+  "pair": [
+    {
+      "id": "ziggo_login",
+      "navigation": {
+        "next": "add_devices"
+      }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices"
+    }
+  ],
+  "repair": [
+    {
+      "id": "ziggo_repair"
+    }
+  ]
+}

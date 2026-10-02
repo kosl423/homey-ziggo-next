@@ -1,0 +1,23 @@
+{
+  "id": "nl.koos.ziggonextpoc",
+  "version": "0.0.22",
+  "compatibility": ">=10.0.0",
+  "sdk": 3,
+  "runtime": "nodejs",
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Ziggo Next",
+    "nl": "Ziggo Next"
+  },
+  "description": {
+    "en": "Community integration for Ziggo Next and Next Mini on Homey.",
+    "nl": "Community-integratie voor Ziggo Next en Next Mini op Homey."
+  },
+  "category": "video",
+  "brandColor": "#F48B00",
+  "author": {
+    "name": "Koos Slachter"
+  }
+}

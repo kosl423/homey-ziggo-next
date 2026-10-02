@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "4",
+    "nl": "4"
+  },
+  "getable": false,
+  "setable": true,
+  "uiComponent": "button"
+}

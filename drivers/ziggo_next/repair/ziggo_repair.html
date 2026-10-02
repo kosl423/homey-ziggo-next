@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"></head>
+<body class="homey-widget-full">
+  <div class="homey-form-group">
+    <label class="homey-form-label" for="username">Ziggo-gebruikersnaam</label>
+    <input class="homey-form-input" id="username" type="email" autocomplete="username">
+  </div>
+
+  <div class="homey-form-group">
+    <label class="homey-form-label" for="password">Wachtwoord</label>
+    <input class="homey-form-input" id="password" type="password" autocomplete="current-password">
+  </div>
+
+  <p>
+    Log opnieuw in bij Ziggo om de sessie van deze Mediabox te herstellen.
+    Je wachtwoord wordt niet opgeslagen.
+  </p>
+
+  <button id="repair" class="homey-button-primary-full">
+    Ziggo-verbinding herstellen
+  </button>
+
+  <p id="status"></p>
+
+<script type="application/javascript">
+  Homey.setTitle('Ziggo Next Mini repareren');
+
+  var button = document.getElementById('repair');
+  var status = document.getElementById('status');
+
+  button.addEventListener('click', function () {
+    var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
+
+    if (!username || !password) {
+      status.textContent = 'Vul je Ziggo-gebruikersnaam en wachtwoord in.';
+      return;
+    }
+
+    button.disabled = true;
+    status.textContent = 'Inloggen bij Ziggo en verbinding herstellen...';
+
+    Homey.emit('repair_ziggo', {
+      username: username,
+      password: password
+    })
+      .then(function () {
+        status.textContent = 'De Ziggo-verbinding is hersteld.';
+        return Homey.done();
+      })
+      .catch(function (err) {
+        status.textContent =
+          'Fout: ' + (err && err.message ? err.message : String(err));
+        button.disabled = false;
+      });
+  });
+</script>
+</body>
+</html>

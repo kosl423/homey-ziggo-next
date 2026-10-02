@@ -1,0 +1,313 @@
+{
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "nl.koos.ziggonextpoc",
+  "version": "0.0.22",
+  "compatibility": ">=10.0.0",
+  "sdk": 3,
+  "runtime": "nodejs",
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Ziggo Next",
+    "nl": "Ziggo Next"
+  },
+  "description": {
+    "en": "Community integration for Ziggo Next and Next Mini on Homey.",
+    "nl": "Community-integratie voor Ziggo Next en Next Mini op Homey."
+  },
+  "category": "video",
+  "brandColor": "#F48B00",
+  "author": {
+    "name": "Koos Slachter"
+  },
+  "flow": {
+    "actions": [
+      {
+        "title": {
+          "en": "Go to channel",
+          "nl": "Ga naar zender"
+        },
+        "titleFormatted": {
+          "en": "Go to channel [[channel]]",
+          "nl": "Ga naar zender [[channel]]"
+        },
+        "highlight": true,
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "title": {
+              "en": "Ziggo Next Mini",
+              "nl": "Ziggo Next Mini"
+            },
+            "filter": "driver_id=ziggo_next"
+          },
+          {
+            "type": "number",
+            "name": "channel",
+            "title": {
+              "en": "Channel",
+              "nl": "Zender"
+            },
+            "min": 1,
+            "max": 9999,
+            "step": 1,
+            "placeholder": {
+              "en": "e.g. 14",
+              "nl": "bijv. 14"
+            }
+          }
+        ],
+        "id": "go_to_channel"
+      }
+    ]
+  },
+  "drivers": [
+    {
+      "name": {
+        "en": "Ziggo Next Mini",
+        "nl": "Ziggo Next Mini"
+      },
+      "class": "other",
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "cloud"
+      ],
+      "capabilities": [
+        "onoff",
+        "ziggo_power",
+        "ziggo_channel_up",
+        "ziggo_channel_down",
+        "ziggo_digit_1",
+        "ziggo_digit_2",
+        "ziggo_digit_3",
+        "ziggo_digit_4",
+        "ziggo_digit_5",
+        "ziggo_digit_6",
+        "ziggo_digit_7",
+        "ziggo_digit_8",
+        "ziggo_digit_9",
+        "ziggo_digit_0",
+        "ziggo_ok",
+        "ziggo_back",
+        "ziggo_nav_up",
+        "ziggo_nav_down",
+        "ziggo_nav_left",
+        "ziggo_nav_right"
+      ],
+      "pair": [
+        {
+          "id": "ziggo_login",
+          "navigation": {
+            "next": "add_devices"
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "ziggo_repair"
+        }
+      ],
+      "id": "ziggo_next"
+    }
+  ],
+  "capabilities": {
+    "ziggo_back": {
+      "type": "boolean",
+      "title": {
+        "en": "Back",
+        "nl": "Terug"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_channel_down": {
+      "type": "boolean",
+      "title": {
+        "en": "Channel Down",
+        "nl": "Zender omlaag"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_channel_up": {
+      "type": "boolean",
+      "title": {
+        "en": "Channel Up",
+        "nl": "Zender omhoog"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_0": {
+      "type": "boolean",
+      "title": {
+        "en": "0",
+        "nl": "0"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_1": {
+      "type": "boolean",
+      "title": {
+        "en": "1",
+        "nl": "1"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_2": {
+      "type": "boolean",
+      "title": {
+        "en": "2",
+        "nl": "2"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_3": {
+      "type": "boolean",
+      "title": {
+        "en": "3",
+        "nl": "3"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_4": {
+      "type": "boolean",
+      "title": {
+        "en": "4",
+        "nl": "4"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_5": {
+      "type": "boolean",
+      "title": {
+        "en": "5",
+        "nl": "5"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_6": {
+      "type": "boolean",
+      "title": {
+        "en": "6",
+        "nl": "6"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_7": {
+      "type": "boolean",
+      "title": {
+        "en": "7",
+        "nl": "7"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_8": {
+      "type": "boolean",
+      "title": {
+        "en": "8",
+        "nl": "8"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_digit_9": {
+      "type": "boolean",
+      "title": {
+        "en": "9",
+        "nl": "9"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_nav_down": {
+      "type": "boolean",
+      "title": {
+        "en": "Omlaag",
+        "nl": "Omlaag"
+      },
+      "uiComponent": "button",
+      "getable": false,
+      "setable": true
+    },
+    "ziggo_nav_left": {
+      "type": "boolean",
+      "title": {
+        "en": "Links",
+        "nl": "Links"
+      },
+      "uiComponent": "button",
+      "getable": false,
+      "setable": true
+    },
+    "ziggo_nav_right": {
+      "type": "boolean",
+      "title": {
+        "en": "Rechts",
+        "nl": "Rechts"
+      },
+      "uiComponent": "button",
+      "getable": false,
+      "setable": true
+    },
+    "ziggo_nav_up": {
+      "type": "boolean",
+      "title": {
+        "en": "Omhoog",
+        "nl": "Omhoog"
+      },
+      "uiComponent": "button",
+      "getable": false,
+      "setable": true
+    },
+    "ziggo_ok": {
+      "type": "boolean",
+      "title": {
+        "en": "OK",
+        "nl": "OK"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    },
+    "ziggo_power": {
+      "type": "boolean",
+      "title": {
+        "en": "Power",
+        "nl": "Aan/uit"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    }
+  }
+}
