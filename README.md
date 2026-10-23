@@ -1,69 +1,91 @@
 # Ziggo Next for Homey
 
-Community-integratie voor het bedienen van een Ziggo Mediabox Next of Next Mini vanuit Homey Pro via de online diensten van Ziggo.
+Community integration for controlling a Ziggo Mediabox Next or Next Mini directly from Homey Pro.
 
-Voor normale aan/uit-bediening zijn geen Home Assistant, Homebridge, aparte bridge of slimme stekker nodig. Een internetverbinding en bereikbare Ziggo-diensten zijn wel vereist. Dit is een communityproject, geen officiële app van Ziggo of Athom.
+This project connects Homey directly to Ziggo's online services. It does not require Home Assistant, Homebridge, a separate bridge, or a smart plug for normal power control. An internet connection and access to Ziggo's services are required.
 
-## Status en compatibiliteit
+## Status
 
-Deze release bevat **v0.0.23** van Ziggo Next for Homey, met centrale aan/uit-bewaking, verbeterde statusinitialisatie en een kleiner installatiepakket.
+Version 0.0.23 has been tested with:
 
-Getest met Homey Pro, Ziggo Nederland en een Next Mini. Alle **56 offline tests** slagen. Dit is geen algemene compatibiliteitsgarantie voor andere Mediabox-modellen of accountconfiguraties.
+- Homey Pro
+- Ziggo Netherlands
+- Ziggo Next Mini
 
-Het appmanifest vereist Homey-software **10.0.0 of nieuwer** en de lokale Homey-platformomgeving. De installatie hieronder is bedoeld voor Homey Pro.
+Homey software 10.0.0 or newer is required. Support for other Mediabox models and account configurations has not been comprehensively verified.
 
-De eerdere versie blijft beschikbaar via de tag [v0.0.22](https://github.com/kosl423/homey-ziggo-next/tree/v0.0.22). Controleer de versie in `app.json` wanneer je broncode downloadt.
+All 56 automated offline tests pass. These use simulated Homey and MQTT environments and do not establish compatibility with every installation.
 
-## Nieuw in v0.0.23
+The previous release remains available through the [v0.0.22 tag](https://github.com/kosl423/homey-ziggo-next/tree/v0.0.22).
 
-- Centrale aan/uit-bewaking per apparaat beschermt zowel de standaardbediening als de losse Power-knop.
-- Gelijktijdige gelijke verzoeken delen één overgang. Bij tegenstrijdige verzoeken telt het laatste gewenste doel.
-- Een mogelijk verzonden Power-opdracht wordt bij een timeout of verbindingsverlies niet automatisch herhaald.
-- Vroege statusberichten worden verwerkt voordat wachtende aan/uit-verzoeken worden beoordeeld.
-- Bij onbevestigde Powerstatus verschijnt een apparaatwaarschuwing.
-- De diagnosegeschiedenis bevat maximaal 250 regels, inclusief Power-gebeurtenissen.
-- Het installatiepakket is sterk verkleind door ontwikkelhulpmiddelen buiten de productieafhankelijkheden te houden. Er is geen procentuele omvangreductie vastgesteld.
+This is a community project and is not an official Ziggo or Athom application.
 
-Zie [RELEASE-0.0.23.txt](RELEASE-0.0.23.txt) voor de release notes.
+## Features
 
-## Bediening en Homey Flows
+The current version supports:
 
-De app biedt aan/uit, zender omhoog/omlaag, cijfertoetsen 0–9, OK/Enter, Terug en navigatie in vier richtingen. Sessievernieuwing, herstelpogingen voor de statusverbinding en opnieuw aanmelden via Repareren zijn beschikbaar.
+- Power on and standby
+- Power-state updates in Homey through Ziggo's MQTT status service
+- A separate Power button
+- Channel up and down
+- Direct channel selection from Homey Flows
+- Numeric keys 0-9
+- OK / Enter
+- Back
+- Navigation up, down, left and right
+- Homey Flow support
+- Automatic Ziggo session renewal
+- Automatic reconnection attempts for the MQTT status connection
+- Device Repair for signing in again without removing the Homey device
 
-Gebruik Homey's standaard aan/uit-bediening wanneer je een specifieke toestand wilt aanvragen. De losse Power-knop vraagt een wisseling van de laatst bevestigde toestand aan en gebruikt dezelfde bewaking. Hij is geblokkeerd zolang de status onbekend is of een opdracht loopt.
+Version 0.0.23 introduces centralized power control. Concurrent requests for the same state share one transition; conflicting requests use the latest requested state. Outdated commands can be cancelled before transmission. A possibly transmitted Power command is not automatically retried after a timeout, connection loss, or restart.
 
-Na opstarten of verbindingsherstel kunnen aan/uit-verzoeken maximaal tien seconden op een bruikbare live beginstatus wachten. Een verlopen of geannuleerd verzoek wordt niet later alsnog uitgevoerd. Alleen een bewaard statusbericht geeft geen toestemming om Power te versturen.
+Early status messages are processed before pending power requests are evaluated. Standard on/off requests can wait up to 10 seconds for a valid live initial state. Expired requests are cancelled and will not execute later. Retained status messages alone do not enable Power commands.
 
-De standaard `onoff`-mogelijkheid levert de normale Homey-Flowkaarten. Daarnaast is er de actie **Ga naar zender [zender]**. Gehele zendernummers van 1 tot en met 9999 worden als cijfertoetsen verstuurd. Het nummer moet beschikbaar zijn in je Ziggo-zenderaanbod; verzending bevestigt niet dat het afstemmen is gelukt.
+Use Homey's standard on/off control to request a specific state. The Power button requests a toggle through the same controller and is blocked while the state is unknown or another transition is pending.
 
-Wijzigingen via de fysieke Ziggo-afstandsbediening kunnen via live status in Homey verschijnen. Bij verbindingsproblemen kan die informatie vertraagd of verouderd zijn. Een AAN-melding bewijst niet wie of wat de Mediabox heeft aangezet.
+The installation package is significantly smaller because development tools are excluded from production dependencies.
 
-## Handmatige installatie
+Changes made with the physical Ziggo remote can update the Homey power state while the status connection is working. Updates may be delayed or become stale during connection problems.
 
-### 1. Voorbereiden
+See [RELEASE-0.0.23.txt](RELEASE-0.0.23.txt) for the release notes and [STATUSINITIALISATIE-0.0.23.txt](STATUSINITIALISATIE-0.0.23.txt) for technical details.
 
-Je hebt nodig:
+## Homey Flows
 
-- Een Homey Pro met geschikte Homey-software.
-- Een computer met internet, verbonden met hetzelfde lokale netwerk als Homey.
-- Toegang tot het Athom-account van die Homey.
-- Een werkend Ziggo-account met precies één toegewezen Mediabox.
-- Node.js en npm. Gebruik een ondersteunde Node.js LTS-versie die voldoet aan de projecteis Node.js 18 of nieuwer.
+Because the device uses Homey's standard `onoff` capability, the normal Homey power Flow cards are available.
 
-Controleer in een terminal:
+The app also provides the custom action:
+
+`Go to channel [channel]`
+
+Whole channel numbers from 1 through 9999 are accepted. The app sends the corresponding numeric key presses to the Mediabox. The channel must be available in the Ziggo channel lineup; accepting a number does not confirm that tuning succeeded.
+
+App ID, driver ID, capabilities, and Flow card definitions remain unchanged from v0.0.22.
+
+## Installation
+
+This version is intended for manual installation with the Homey CLI.
+
+Requirements:
+
+- Homey Pro running compatible Homey software
+- A computer with internet access on the same local network as Homey
+- Access to the Athom account associated with that Homey
+- A working Ziggo account with exactly one assigned Mediabox
+- Node.js and npm; use a supported Node.js LTS release meeting the project requirement of Node.js 18 or newer
+
+Check that Node.js and npm are available:
 
 ```text
 node --version
 npm --version
 ```
 
-### 2. De bron downloaden
+Download the desired source version from the [GitHub repository](https://github.com/kosl423/homey-ziggo-next) using **Code → Download ZIP**, then extract the ZIP completely. Check the version in `app.json`.
 
-Download de gewenste bronversie van de [GitHub-repository](https://github.com/kosl423/homey-ziggo-next) via **Code → Download ZIP** en pak die volledig uit. Controleer de versie in `app.json`: de standaardbranch kan een andere versie bevatten dan deze lokale voorbereiding.
+Open a terminal in the extracted folder containing `package.json`, `package-lock.json`, and `app.js`.
 
-Open een terminal in de uitgepakte map met `package.json`, `package-lock.json` en `app.js`.
-
-### 3. Afhankelijkheden installeren en aanmelden
+Install dependencies using the lockfile, then sign in and select Homey:
 
 ```text
 npm ci
@@ -72,23 +94,17 @@ npx --no-install homey login
 npx --no-install homey select
 ```
 
-`npm ci` gebruikt de meegeleverde lockfile met Homey CLI **3.0.0** als ontwikkelafhankelijkheid. De opdrachten met `npx --no-install` gebruiken die lokale installatie; een aparte globale installatie is hiervoor niet nodig.
+The lockfile includes Homey CLI 3.0.0 as a development dependency. These `npx --no-install` commands use that local installation; a separate global CLI installation is not required.
 
-Volg de aanmeldprocedure en selecteer de bedoelde Homey Pro. De Athom-aanmelding staat los van het Ziggo-account dat je later bij het koppelen gebruikt.
-
-### 4. Op Homey installeren
-
-Deze opdracht wijzigt de app-installatie op de geselecteerde Homey:
+Install the app on the selected Homey:
 
 ```text
 npx --no-install homey app install
 ```
 
-Wacht op de bevestiging dat de installatie is geslaagd. De app draait daarna op Homey; de computer hoeft niet aan te blijven. Gebruik voor deze procedure `app install`. `app run` start een ontwikkelsessie; stoppen daarvan verwijdert de ontwikkelapp.
+Wait for a successful installation message. The app then runs on Homey; the computer does not need to remain powered on. Use `app install` for this procedure. `app run` starts a development session, and stopping that session uninstalls the development app.
 
-### Windows PowerShell
-
-Als PowerShell scripts blokkeert, gebruik je de `.cmd`-varianten zonder het uitvoeringsbeleid te wijzigen:
+On Windows PowerShell, systems that block npm/homey scripts can use the `.cmd` commands without changing the execution policy:
 
 ```text
 npm.cmd ci
@@ -98,57 +114,89 @@ npx.cmd --no-install homey select
 npx.cmd --no-install homey app install
 ```
 
-Bij een installatiefout: controleer de concrete foutmelding en of je in de juiste map staat. Voer niet blind `npm audit fix --force` uit; dat kan onverenigbare afhankelijkheden introduceren.
+If installation fails, check the actual error and the working directory. Do not run `npm audit fix --force` blindly; it can introduce incompatible dependency changes.
 
-Zie ook de officiële [Homey CLI-documentatie](https://apps.developer.homey.app/the-basics/getting-started/homey-cli).
+See the official [Homey CLI documentation](https://apps.developer.homey.app/the-basics/getting-started/homey-cli) for further details.
 
-## Koppelen en repareren
+## Pairing
 
-Kies in Homey voor het toevoegen van een apparaat, selecteer Ziggo Next en de apparaatvermelding Ziggo Next Mini, en meld je aan met je Ziggo-gebruikersnaam en wachtwoord. De huidige implementatie stopt wanneer nul of meer dan één Mediabox wordt gevonden.
+After installation:
 
-Bij een ongeldige sessie kun je het bestaande apparaat via **Repareren** opnieuw aanmelden. Repareren controleert of de gevonden Mediabox bij het bestaande apparaat hoort, bewaart de nieuwe sessie en start de statusverbinding opnieuw. Het apparaat hoeft daarvoor niet te worden verwijderd; bestaande Flow-verwijzingen kunnen behouden blijven.
+1. Open Homey and add a new device.
+2. Select Ziggo Next and its Ziggo Next Mini device entry.
+3. Enter the Ziggo username and password.
+4. The app signs in to Ziggo and discovers the assigned Mediabox.
+5. Add the discovered Mediabox to Homey.
 
-## Diagnose en privacy
+The current implementation stops if none or more than one Mediabox is found.
 
-De appinstellingen bevatten de diagnosegeschiedenis en de knop **Diagnose wissen**. De geschiedenis is begrensd op 250 regels. Naast opstarten, koppelen, repareren en sessievernieuwing bevat deze nu Power-gebeurtenissen, waarschuwingen en herstelmeldingen. Meer sessiedetails kunnen in het runtime-log staan.
+The Ziggo password is used for authentication and is not stored by the app. The resulting session information is stored in the Homey device store so the connection can be renewed without repeatedly asking for the password.
 
-Bekende beperking: de knop **Diagnose wissen** wist de opgeslagen regels, maar oude regels kunnen bij een volgende logmelding terugkomen doordat de app ze nog in het geheugen heeft. Een correctie hierop is niet opgenomen in deze release.
+## Repair
 
-Het Ziggo-wachtwoord wordt gebruikt voor aanmelden en niet opgeslagen door de app. De Homey-apparaatopslag bevat wel de gebruikersnaam, sessietokens, cookies en account-/apparaatidentificatie die nodig zijn voor de verbinding. Behandel die gegevens als gevoelig.
+If Ziggo invalidates the stored session, the device may become unavailable and request a repair.
 
-De diagnose gebruikt tokenfingerprints en metadata. Dat is geen garantie dat iedere foutmelding vrij is van gevoelige informatie. Controleer logs vóór delen en verwijder inloggegevens, tokens, cookies en persoonlijke identificatie.
+Use the existing Homey device's Repair function and sign in to Ziggo again.
 
-## Beperkingen
+A successful Repair checks that the discovered Mediabox matches the existing device, replaces the stored session, and restarts the status connection. The device does not need to be removed, so existing Flow references can be preserved.
 
-- Praktijkervaring richt zich op Ziggo Nederland, Homey Pro en een Next Mini.
-- Koppelen en repareren verwachten precies één toegewezen Mediabox.
-- Alleen bewaarde statusberichten zijn onvoldoende om Power vrij te geven. Herstel kan een nieuwe live status, bijvoorbeeld na fysieke bediening, vereisen.
-- Een onzekere Power-uitvoering wordt niet automatisch opnieuw geprobeerd.
-- De bestaande MQTT-toetsverzending met `qos: 2` en `retain: true` blijft behouden. Hiermee is niet gegarandeerd dat een opdracht over de hele Ziggo-keten precies één keer fysiek wordt uitgevoerd.
-- De app bewaakt opdrachten uit deze app; gelijktijdige bediening via andere clients of de fysieke afstandsbediening blijft mogelijk.
-- De app bevestigt niet zelfstandig de toestand van je tv of receiver en kan geen netspanning herstellen.
-- Wijzigingen aan Ziggo-diensten of authenticatie kunnen de integratie verstoren. Doorlopende compatibiliteit en ondersteuning zijn niet gegarandeerd.
+## Session handling
 
-## Offline ontwikkeling en controles
+Ziggo authentication uses rotating tokens and cookies. The app attempts to renew the session automatically and stores updated session information on Homey.
+
+Session renewal and reconnection depend on Ziggo accepting the session and its services being reachable. If renewal cannot recover the connection, use Repair to authenticate again.
+
+## Diagnostics
+
+A diagnostic page is available in the app settings.
+
+The persistent diagnostic history records app startup, pairing, Repair, session renewal, and power-control events, including warnings and recovery information. Storage is serialized and limited to 250 entries. More detailed session diagnostics may appear in the runtime log.
+
+Device warnings indicate an unconfirmed power state or expired initialization. A valid live state or completed transition can clear the warning.
+
+Known issue: cleared diagnostic entries may reappear when another message is recorded.
+
+Review and redact diagnostic information before sharing it. When reporting a problem, include the app version, Homey software version, Mediabox model, the attempted action, and the relevant error message.
+
+## Privacy and security
+
+- The Ziggo password is not stored by the app.
+- The Homey device store contains the Ziggo username, authentication tokens, session cookies, and account/device identifiers required for the connection.
+- Stored session credentials are sensitive and must be protected.
+- Diagnostics use token fingerprints and metadata. This does not guarantee that every error message is free of sensitive information.
+- Never publish credentials, tokens, cookies, household identifiers, or device identifiers in issues, screenshots, or logs.
+
+## Limitations
+
+- Testing has focused on Ziggo Netherlands, Homey Pro, and a Next Mini.
+- Pairing and Repair require exactly one assigned Mediabox.
+- Power control can remain blocked after startup or reconnection until a valid live status arrives.
+- An uncertain command outcome may require a new live target status before further power commands are accepted.
+- MQTT key commands retain QoS 2 and `retain: true`. These settings do not guarantee exactly one physical execution across the complete Ziggo service chain.
+- Protection covers commands from this app; other clients and the physical remote can still change the device state.
+- A power-state update does not identify what caused the Mediabox to switch on.
+- The app does not independently confirm the state of a TV or receiver and cannot restore mains power.
+- Changes to Ziggo authentication or backend services may break the integration.
+- This community project has no official Ziggo or Athom support. Continued maintenance and compatibility are not guaranteed.
+
+## Protocol reference
+
+The Ziggo authentication and set-top-box protocol implementation was developed with reference to the open-source [homebridge-eosstb](https://github.com/jsiegenthaler/homebridge-eosstb) project by Jan Siegenthaler.
+
+See [NOTICE.txt](NOTICE.txt) for attribution information.
+
+## Contributing
+
+Issues, technical findings, and pull requests are welcome through the repository.
+
+Describe the setup and provide steps to reproduce a problem, with sensitive information removed. Long-term maintenance is not guaranteed.
+
+To run the offline tests:
 
 ```text
 node --test test/power-controller.test.js test/integration.test.js
 ```
 
-De 56 tests gebruiken nagebootste Homey- en MQTT-omgevingen en vereisen geen verbinding met Homey of Ziggo. Ze behandelen onder meer gelijktijdige Power-verzoeken, annulering, verbindingsverlies, herstart zonder herhaling en statusinitialisatie.
+## License
 
-De statusinitialisatierevisie heeft op 14 oktober 2026 offline Homey CLI-debugvalidatie doorlopen. Dat is geen App Store-goedkeuring of brede hardwaretest.
-
-De 45 productieafhankelijkheden hebben dezelfde versies en integriteitscontrolesommen als de onderzochte v0.0.22-bron. Homey CLI staat in de ontwikkelafhankelijkheden en wordt niet als CLI in het installatiepakket meegenomen. Houd `node_modules`, `.homeybuild` en reservebestanden buiten een bronrelease.
-
-[STATUSINITIALISATIE-0.0.23.txt](STATUSINITIALISATIE-0.0.23.txt) beschrijft de ontwikkeling en controles van 14 oktober 2026. De actuele release-informatie staat in deze README en de release notes.
-
-## Protocolreferentie en bijdragen
-
-De protocolimplementatie is ontwikkeld met [homebridge-eosstb van Jan Siegenthaler](https://github.com/jsiegenthaler/homebridge-eosstb) als referentie. Zie [NOTICE.txt](NOTICE.txt) voor de toelichting.
-
-Probleemmeldingen en bijdragen zijn welkom via de repository. Vermeld appversie, Homey-softwareversie, Mediabox-model, de uitgevoerde handeling en de relevante foutmelding, met gevoelige gegevens verwijderd.
-
-## Licentie
-
-MIT. Zie [LICENSE](LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
