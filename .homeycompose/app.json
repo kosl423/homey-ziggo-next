@@ -1,6 +1,6 @@
 {
   "id": "nl.koos.ziggonextpoc",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "compatibility": ">=10.0.0",
   "sdk": 3,
   "runtime": "nodejs",

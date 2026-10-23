@@ -3,8 +3,8 @@ const Homey = require('homey');
 
 class ZiggoNextApp extends Homey.App {
   async onInit() {
-    this.log('Ziggo Next v0.0.22 gestart.');
-    this.recordDiag('APP v0.0.22 gestart');
+    this.log('Ziggo Next v0.0.23 gestart.');
+    this.recordDiag('APP v0.0.23 gestart');
     const goToChannel = this.homey.flow.getActionCard('go_to_channel');
     goToChannel.registerRunListener(async args => {
       const channel = Number(args.channel);
@@ -16,11 +16,17 @@ class ZiggoNextApp extends Homey.App {
 
   recordDiag(message) {
     const now = new Date().toISOString();
-    const current = this.homey.settings.get('diagnosticLog');
-    const lines = Array.isArray(current) ? current : [];
+    if (!this.diagnosticLines) {
+      const current = this.homey.settings.get('diagnosticLog');
+      this.diagnosticLines = Array.isArray(current) ? [...current] : [];
+    }
+    const lines = this.diagnosticLines;
     lines.push(`${now} ${message}`);
     while (lines.length > 250) lines.shift();
-    Promise.resolve(this.homey.settings.set('diagnosticLog', lines)).catch(() => {});
+    const snapshot = [...lines];
+    this.diagnosticWrite = (this.diagnosticWrite || Promise.resolve())
+      .then(() => this.homey.settings.set('diagnosticLog', snapshot))
+      .catch(() => {});
   }
 }
 module.exports = ZiggoNextApp;

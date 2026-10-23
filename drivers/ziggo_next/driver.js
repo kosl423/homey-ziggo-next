@@ -4,7 +4,7 @@ const Ziggo = require('../../lib/ziggo');
 
 class ZiggoNextDriver extends Homey.Driver {
   async onInit() {
-    this.log('Ziggo Next-driver v0.0.22 gestart.');
+    this.log('Ziggo Next-driver v0.0.23 gestart.');
   }
 
   async onPair(session) {

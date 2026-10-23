@@ -1,6 +1,7 @@
 'use strict';
 const Homey = require('homey');
 const Ziggo = require('../../lib/ziggo');
+const PowerController = require('../../lib/power-controller');
 
 class ZiggoNextDevice extends Homey.Device {
   async onInit() {
@@ -10,6 +11,28 @@ class ZiggoNextDevice extends Homey.Device {
     this.actualPowerState = null;
     this.sessionRefreshPromise = null;
     this.sessionDiagSeq = 0;
+    this.monitorEpoch = 0;
+    this.connectionSequence = 0;
+    this.statusWriteQueue = Promise.resolve();
+    this.journalQueue = Promise.resolve();
+    this.warningQueue = Promise.resolve();
+    this.deleted = false;
+    this.power = new PowerController({
+      prepare: async signal => {
+        const config = await Ziggo.getConfig();
+        const { session, mqttToken, cookies, refreshed } = await this.ensureSessionLocked(config);
+        if (refreshed) await this.persistSession(session, cookies);
+        if (signal.aborted) throw new Error('Power-voorbereiding geannuleerd.');
+        return options => Ziggo.sendKey(config, session, this.getData().id, mqttToken, 'Power', options);
+      },
+      journal: record => {
+        const write = this.journalQueue.then(() => this.setStoreValue('pendingPower', record));
+        this.journalQueue = write.catch(() => {});
+        return write;
+      },
+      log: (event, fields) => this.powerDiagnostic(event, fields),
+    });
+    this.power.restore(this.getStoreValue('pendingPower'));
 
     for (const capability of ['onoff', 'ziggo_power', 'ziggo_channel_up', 'ziggo_channel_down', 'ziggo_digit_1', 'ziggo_digit_2', 'ziggo_digit_3', 'ziggo_digit_4', 'ziggo_digit_5', 'ziggo_digit_6', 'ziggo_digit_7', 'ziggo_digit_8', 'ziggo_digit_9', 'ziggo_digit_0', 'ziggo_ok', 'ziggo_back', 'ziggo_nav_up', 'ziggo_nav_down', 'ziggo_nav_left', 'ziggo_nav_right']) {
       if (!this.hasCapability(capability)) {
@@ -21,16 +44,7 @@ class ZiggoNextDevice extends Homey.Device {
     // Native Homey power state. This is state-aware: never blindly toggle when
     // Ziggo already reports the requested state.
     this.registerCapabilityListener('onoff', async value => {
-      const desired = Boolean(value);
-      if (this.actualPowerState === null) {
-        throw new Error('Powerstatus is nog niet bekend. Probeer het over enkele seconden opnieuw.');
-      }
-      if (this.actualPowerState === desired) {
-        this.log(`Aan/uit: gewenste status is al ${desired ? 'aan' : 'uit'}; geen Power-commando nodig.`);
-        return;
-      }
-      await this.sendKey('Power');
-      this.log(`Aan/uit: Power verzonden voor gewenste status ${desired ? 'aan' : 'uit'}; wacht op Ziggo-statusbevestiging.`);
+      await this.power.request(value);
     });
 
     // Keep the proven raw Power button for now as a fallback/manual toggle.
@@ -70,7 +84,7 @@ class ZiggoNextDevice extends Homey.Device {
     });
 
     // Keep Homey's native on/off state synchronized with Ziggo's realtime status.
-    this.startStatusMonitor().catch(err => this.error(`Statusmonitor starten mislukt: ${err.message}`));
+    this.startStatusMonitor().catch(() => { this.diag('STATUS start.failed'); this.scheduleStatusRestart(); });
 
     // Runs on Homey itself, so laptop standby does not interrupt the lifecycle test.
     this.sessionWatchdogTimer = setInterval(() => {
@@ -109,6 +123,24 @@ class ZiggoNextDevice extends Homey.Device {
     try { this.homey.app.recordDiag(message); } catch (_) {}
   }
 
+  powerDiagnostic(event, fields) {
+    this.diag(`POWER ${event} ${JSON.stringify(fields)}`);
+    const unavailableStatus = ['connection.ready', 'connection.lost', 'status.initialCandidate',
+      'initialization.waiting', 'initialization.cancelled', 'restore.uncertain', 'transition.failed'];
+    if (unavailableStatus.includes(event) && typeof this.setWarning === 'function') {
+      const message = event === 'initialization.cancelled' ? fields.reason
+        : 'Powerstatus nog niet bevestigd. Power wacht op live status; er wordt niet blind getoggeld.';
+      this.warningQueue = this.warningQueue.then(() => {
+        if (!this.deleted) return this.setWarning(message);
+      }).catch(() => {});
+    } else if ((event === 'transition.complete' || (event === 'status.accepted' && !this.power?.tx))
+      && typeof this.unsetWarning === 'function') {
+      this.warningQueue = this.warningQueue.then(() => {
+        if (!this.deleted) return this.unsetWarning();
+      }).catch(() => {});
+    }
+  }
+
 
   async ensureSessionLocked(config) {
     // A Ziggo refresh token may be rotated/one-shot. Never allow the status
@@ -134,7 +166,7 @@ class ZiggoNextDevice extends Homey.Device {
   const now = this.getStoredSession();
 
   diag('ensure.failed', {
-    error: err.message,
+    error: 'session_failed',
     stored: Ziggo.tokenMeta(now),
     cookies: Ziggo.cookieMeta(now.cookieHeader)
   });
@@ -169,6 +201,11 @@ class ZiggoNextDevice extends Homey.Device {
   }
 
   async startStatusMonitor() {
+    if (this.deleted) return;
+    const epoch = ++this.monitorEpoch;
+    this.power.disconnect(this.connectionSequence);
+    if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);
+    this.statusReconnectTimer = null;
     if (this.statusClient) {
       try { this.statusClient.end(true); } catch (_) {}
       this.statusClient = null;
@@ -179,34 +216,74 @@ class ZiggoNextDevice extends Homey.Device {
       await this.persistSession(session, cookies);
       this.log('Statusmonitor: Ziggo-sessie vernieuwd en nieuwe tokens opgeslagen.');
     }
+    if (this.deleted || epoch !== this.monitorEpoch) return;
     this.statusClient = Ziggo.monitorStatus(config, session, this.getData().id, mqttToken, {
-      onConnect: () => this.log('Statusmonitor: MQTT verbonden; luister naar powerstatus.'),
-      onStatus: message => {
+      onConnect: () => {
+        if (epoch !== this.monitorEpoch || this.deleted) return;
+        ++this.connectionSequence;
+        this.diag(`STATUS connected generation=${this.connectionSequence}`);
+      },
+      onSubscribed: () => {
+        if (epoch === this.monitorEpoch && !this.deleted) {
+          if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);
+          this.statusReconnectTimer = null;
+          this.power.connect(this.connectionSequence);
+        }
+      },
+      onStatus: (message, metadata) => {
+        if (epoch !== this.monitorEpoch || this.deleted) return;
         const state = message?.state || '(geen state)';
         const sourceMatches = !message?.source || message.source === this.getData().id;
         if (!sourceMatches) return;
 
         if (state === 'ONLINE_RUNNING' || state === 'ONLINE_STANDBY') {
           const isOn = state === 'ONLINE_RUNNING';
+          if (!this.power.observe(isOn, { ...metadata, generation: this.connectionSequence })) return;
           this.actualPowerState = isOn;
-          this.setCapabilityValue('onoff', isOn)
-            .catch(err => this.error(`Powerstatus bijwerken mislukt: ${err.message}`));
+          this.statusWriteQueue = this.statusWriteQueue.then(async () => {
+            if (this.deleted || epoch !== this.monitorEpoch) return;
+            if (this.getCapabilityValue('onoff') !== isOn) await this.setCapabilityValue('onoff', isOn);
+          }).catch(() => this.diag('STATUS capability.write.failed'));
         }
       },
-      onReconnect: () => this.log('Statusmonitor: MQTT opnieuw verbinden...'),
-      onOffline: () => this.log('Statusmonitor: MQTT offline.'),
-      onError: err => this.error(`Statusmonitor: MQTT-fout: ${err.message}`),
-      onClose: () => this.log('Statusmonitor: MQTT-verbinding gesloten.'),
+      onReconnect: () => { if (epoch === this.monitorEpoch) this.diag('STATUS reconnect'); },
+      onOffline: () => this.statusDisconnected(epoch),
+      onError: () => this.statusDisconnected(epoch),
+      onClose: () => this.statusDisconnected(epoch),
     });
   }
 
+  statusDisconnected(epoch) {
+    if (epoch !== this.monitorEpoch || this.deleted) return;
+    this.actualPowerState = null;
+    // A socket can close before SUBACK, before the controller knows its generation.
+    this.power.cancelInitialization('Statusverbinding verbroken tijdens initialisatie.');
+    this.power.disconnect(this.connectionSequence);
+    this.scheduleStatusRestart();
+  }
+
+  scheduleStatusRestart() {
+    if (this.deleted || this.statusReconnectTimer) return;
+    this.statusReconnectTimer = setTimeout(() => {
+      this.statusReconnectTimer = null;
+      this.startStatusMonitor().catch(() => { this.diag('STATUS restart.failed'); this.scheduleStatusRestart(); });
+    }, 10000);
+  }
+
   async onDeleted() {
+    this.deleted = true;
+    ++this.monitorEpoch;
+    this.power?.close();
     if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);
     if (this.sessionWatchdogTimer) clearInterval(this.sessionWatchdogTimer);
     if (this.statusClient) {
       try { this.statusClient.end(true); } catch (_) {}
       this.statusClient = null;
     }
+  }
+
+  async onUninit() {
+    await this.onDeleted();
   }
 
 
@@ -225,6 +302,7 @@ class ZiggoNextDevice extends Homey.Device {
   }
 
   async sendKey(w3cKey) {
+    if (w3cKey === 'Power') return this.power.toggle();
     const config = await Ziggo.getConfig();
     const { session, mqttToken, cookies, refreshed } = await this.ensureSessionLocked(config);
     if (refreshed) {

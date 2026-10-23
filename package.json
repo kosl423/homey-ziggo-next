@@ -1,14 +1,19 @@
 {
   "name": "homey-ziggo-next",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "private": true,
   "main": "app.js",
+  "scripts": {
+    "test": "node --test test/power-controller.test.js test/integration.test.js"
+  },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "homey": "^3.0.0",
     "mqtt": "^5.14.1",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "homey": "^3.0.0"
   }
 }
