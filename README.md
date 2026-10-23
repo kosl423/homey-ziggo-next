@@ -6,9 +6,9 @@ Voor normale aan/uit-bediening zijn geen Home Assistant, Homebridge, aparte brid
 
 ## Status en compatibiliteit
 
-Deze bron bevat **v0.0.23** van Ziggo Next for Homey. De release is gebaseerd op de teruggevonden lokale bronmap waarmee de maker de app op Homey heeft geïnstalleerd.
+Deze release bevat **v0.0.23** van Ziggo Next for Homey, met centrale aan/uit-bewaking, verbeterde statusinitialisatie en een kleiner installatiepakket.
 
-De maker meldt ongeveer een week probleemloos gebruik op de eigen Homey Pro met Ziggo Nederland en een Next Mini. De lokale bron heeft **56 geslaagde offline tests**. Dit is geen algemene compatibiliteitsgarantie. Een communitygebruiker heeft ook succesvolle bediening van een Mediabox Next gemeld; dit is een gebruikersmelding.
+Getest met Homey Pro, Ziggo Nederland en een Next Mini. Alle **56 offline tests** slagen. Dit is geen algemene compatibiliteitsgarantie voor andere Mediabox-modellen of accountconfiguraties.
 
 Het appmanifest vereist Homey-software **10.0.0 of nieuwer** en de lokale Homey-platformomgeving. De installatie hieronder is bedoeld voor Homey Pro.
 
@@ -72,7 +72,7 @@ npx --no-install homey login
 npx --no-install homey select
 ```
 
-`npm ci` gebruikt de meegeleverde lockfile. De lockfile bevat Homey CLI **3.0.0** als ontwikkelafhankelijkheid, overeenkomstig de teruggevonden installatiebron. De opdrachten met `npx --no-install` gebruiken die lokale installatie; een aparte globale installatie is hiervoor niet nodig.
+`npm ci` gebruikt de meegeleverde lockfile met Homey CLI **3.0.0** als ontwikkelafhankelijkheid. De opdrachten met `npx --no-install` gebruiken die lokale installatie; een aparte globale installatie is hiervoor niet nodig.
 
 Volg de aanmeldprocedure en selecteer de bedoelde Homey Pro. De Athom-aanmelding staat los van het Ziggo-account dat je later bij het koppelen gebruikt.
 

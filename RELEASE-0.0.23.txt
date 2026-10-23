@@ -1,54 +1,37 @@
 Ziggo Next for Homey v0.0.23
-Aan/uit-bewaking en een kleiner installatiepakket
-Releasedatum: 23 oktober 2026
+Improved power control and reduced installation size
+Released: October 23, 2026
 
-STATUS
-Deze release is gebaseerd op de teruggevonden lokale v0.0.23-installatiebron.
-De maker meldt ongeveer een week probleemloos gebruik op de eigen Homey Pro
-met Ziggo Nederland en een Next Mini. Dit is geen algemene compatibiliteitsgarantie.
+CHANGES
+- Centralized power control for standard Homey on/off commands and the Power button.
+- Concurrent requests for the same state share a single transition. Conflicting
+  requests use the latest requested state.
+- Outdated commands can be cancelled before transmission.
+- Power commands are not automatically retried after a timeout, connection loss,
+  or restart when the outcome of a previous command is uncertain.
+- Early MQTT status messages are buffered and processed in order before pending
+  power requests are evaluated.
+- On/off requests wait up to 10 seconds for an initial live status. Expired
+  requests are cancelled and will not execute later.
+- Device warnings indicate when the power state has not been confirmed.
+- Expanded power diagnostics with serialized storage and a 250-entry limit.
+- Significantly reduced installation size by excluding development tools from
+  production dependencies.
 
-VERBETERINGEN TEN OPZICHTE VAN v0.0.22
-- Centrale aan/uit-bewaking per apparaat voor standaardbediening en de Power-knop.
-- Gelijke gelijktijdige verzoeken delen één overgang. Bij tegenstrijdige verzoeken
-  telt het laatste gewenste doel; vervangen verzoeken worden afgewezen.
-- Achterhaalde opdrachten kunnen vóór verzending worden geannuleerd.
-- Geen automatische herhaling van een mogelijk verzonden Power-opdracht na een
-  timeout, verbindingsverlies of appherstart. Bij onzekerheid wacht de app op een
-  geschikte live doelstatus.
-- Vroege MQTT-statusberichten worden na succesvolle subscription in volgorde
-  verwerkt voordat wachtende Power-verzoeken worden beoordeeld.
-- Aan/uit-verzoeken wachten maximaal tien seconden op een bruikbare beginstatus.
-  Verlopen verzoeken worden later niet alsnog uitgevoerd.
-- Apparaatwaarschuwing bij onbevestigde Powerstatus.
-- Uitgebreidere Power-diagnose en geordende opslag, begrensd op 250 regels.
-- Sterk kleiner installatiepakket doordat ontwikkelhulpmiddelen buiten de
-  productieafhankelijkheden blijven. Er is geen procentuele omvangreductie
-  vastgesteld.
+COMPATIBILITY AND VALIDATION
+- Homey Pro with Homey software 10.0.0 or later.
+- App ID, driver ID, capabilities, and Flow card definitions are unchanged.
+- Production dependency versions are unchanged from v0.0.22.
+- 56 automated offline tests passed.
+- v0.0.22 remains available through its existing version tag.
 
-CONTROLES EN COMPATIBILITEIT
-- 56 offline tests geslaagd. Deze gebruiken nagebootste Homey-/MQTT-omgevingen.
-- Alle 45 productieafhankelijkheden hebben dezelfde versies en
-  integriteitscontrolesommen als de onderzochte v0.0.22-bron.
-- App-ID, driver-ID, capability-definities en Flow-kaartdefinities blijven gelijk.
-- De statusinitialisatierevisie heeft op 14 oktober 2026 offline CLI-debugvalidatie
-  doorlopen. Dat is geen App Store-goedkeuring of brede hardwaretest.
-- De afhankelijkheden en lockfile uit de teruggevonden installatiebron zijn
-  behouden, inclusief Homey CLI 3.0.0 als ontwikkelafhankelijkheid.
-- v0.0.22 blijft beschikbaar via de bestaande Git-tag v0.0.22.
-
-BEKENDE BEPERKINGEN
-- Power kan na opstarten of verbindingsverlies wachten op bruikbare live status.
-  Een bewaard statusbericht alleen geeft geen toestemming voor een Power-opdracht.
-- Bij een onzekere uitvoering kan handmatig statusherstel nodig zijn.
-- Bestaande MQTT-toetsverzending blijft qos=2, retain=true. Precies één fysieke
-  uitvoering over de volledige Ziggo-keten is daarmee niet gegarandeerd.
-- Een AAN-status bewijst niet wie of wat de Mediabox heeft aangezet.
-- Koppelen en repareren verwachten precies één toegewezen Mediabox.
-- Diagnose wissen kan oude regels bij een volgende logmelding laten terugkomen.
-  De aanvullende correctie daarvoor valt buiten deze release.
-- Sessiedata op Homey zijn gevoelig. Controleer diagnosegegevens vóór delen.
-
-AANVULLENDE INFORMATIE
-README.md bevat de Nederlandse installatie- en gebruiksinformatie.
-STATUSINITIALISATIE-0.0.23.txt bewaart de technische ontwikkelnotitie van
-14 oktober 2026. De actuele release-informatie staat in deze release notes.
+KNOWN LIMITATIONS
+- Power control requires a valid live status after startup or reconnection.
+  Retained status messages alone do not enable power commands.
+- An uncertain command outcome may require a new live status before further
+  power commands can be accepted.
+- MQTT key commands continue to use QoS 2 and retain=true. This does not guarantee
+  exactly one physical execution across the complete Ziggo service chain.
+- Power-state updates do not identify what caused the device to switch on.
+- Pairing and Repair require exactly one assigned Mediabox.
+- Cleared diagnostic entries may reappear when a subsequent message is logged.

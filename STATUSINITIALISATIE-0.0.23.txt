@@ -1,130 +1,75 @@
-HISTORISCHE ONTWIKKELNOTITIE — 14 oktober 2026
-Onderstaande status beschrijft de ontwikkeling en controles op die datum.
-De oorspronkelijke v0.0.23 is daarna volgens de maker op Homey geïnstalleerd
-en ongeveer een week probleemloos gebruikt. Zie README.md en
-RELEASE-0.0.23.txt voor de actuele release-informatie.
+Ziggo Next for Homey v0.0.23
+Power status initialization
 
-v0.0.23 - aanvullende revisie statusinitialisatie
-14 oktober 2026
+STATUS MESSAGE HANDLING
+- Up to 100 MQTT status messages received before subscription acknowledgement
+  (SUBACK) are buffered.
+- After a successful subscription, the current connection is registered before
+  buffered messages are processed in their original order.
+- Pending power requests are evaluated only after the complete buffer has drained.
+  This prevents an earlier status from overriding a later state in the buffer.
+- Subscription rejection, buffer overflow, malformed input, and disconnection
+  invalidate initialization. Callbacks from previous connections are ignored.
 
-SCOPE EN STATUS
-De eerdere lokale v0.0.23-kandidaat is lokaal verbeterd. Versienummer blijft op
-verzoek 0.0.23. De eerdere ZIP is behouden als before-statusinitialisatie.zip;
-v0.0.22 blijft eveneens ongewijzigd beschikbaar. Er is niets op Homey geïnstalleerd,
-geen bestaande flow gewijzigd en geen echt Ziggo-commando of statusquery uitgevoerd.
-Deze revisie is nog geen op hardware goedgekeurde release.
+INITIALIZATION AND POWER REQUESTS
+- Standard on/off requests wait up to 10 seconds for a valid live initial state.
+- Requests for the same state share the waiting period. Conflicting requests keep
+  the latest requested state and reject superseded requests.
+- Additional requests do not extend the initialization deadline.
+- Expiry, disconnection, and shutdown cancel pending initialization requests.
+  A later status message will not execute an expired request.
+- The Power button is blocked while the initial state is unknown.
 
-DAADWERKELIJK OPGELOST
-1. Verlies van vroege MQTT-status vóór SUBACK: buffer van maximaal 100 berichten.
-   Na succesvolle subscription ontvangt de controller eerst de verbindingsgeneratie,
-   vervolgens alle vroege berichten in volgorde. Een mislukte/geweigerde SUBACK,
-   fout, overflow of disconnect maakt die buffer ongeldig. Een oude SUBACK-callback
-   kan geen nieuwe verbinding activeren.
-2. Wachtende AAN/UIT-doelen worden pas beoordeeld na verwerking van de volledige
-   vroege buffer. Een laatste vroege AAN-status voorkomt bijvoorbeeld een onnodige
-   Power-opdracht op basis van een eerder standby-bericht.
-3. Initialisatie en transitiebevestiging zijn gescheiden. Vroege live berichten mogen
-   initialiseren, maar krijgen buffered=true en bevestigen geen mogelijk verstuurde
-   Power-opdracht uit een vorige verbinding/herstart. Retained berichten bevestigen
-   evenmin een Power-opdracht.
-4. Native AAN/UIT tijdens initialisatie wacht maximaal 10 seconden op bruikbare live
-   status. Gelijke doelen delen de wachtperiode; het laatste tegengestelde doel wint.
-   Een vervangen verzoek wordt afgewezen. Herhaalde verzoeken verlengen de deadline
-   niet. Na verlopen deadline/disconnect/shutdown vervalt het doel: een latere
-   status veroorzaakt geen verborgen uitvoering.
-5. De losse Power-knop blijft geblokkeerd zolang de begintoestand onbekend is: een
-   raw toggle wordt niet blind in een wachtrij gezet.
-6. Homey krijgt een apparaatwaarschuwing bij onbevestigde status en bij verlopen
-   initialisatie. Warning-writes zijn geserialiseerd; bruikbare live status of een
-   voltooide transitie kan de waarschuwing wissen.
-7. De bestaande centrale Power-bewaking, journal, laatste-doelverwerking, geen
-   automatische retries en bescherming tegen late callbacks blijven behouden.
+RETAINED AND BUFFERED STATUS
+- A retained status may be stored as an unverified diagnostic candidate.
+- A retained candidate does not update Homey's on/off state, authorize a Power
+  command, or confirm a pending transition.
+- A valid live status replaces the retained candidate.
+- Buffered live messages may initialize the current state but cannot confirm
+  an uncertain command from an earlier connection or restart.
 
-RETAINED STATUS: BIJDRAGE EN VEILIGHEID
-Een retained ONLINE_RUNNING/ONLINE_STANDBY van de juiste huidige verbinding wordt
-alleen als initialCandidate opgeslagen wanneer er geen live status en geen pending
-Power-transitie is. De kandidaat vermeldt unverified_retained in diagnostiek.
-Dit helpt onderscheiden tussen 'geen enkele status' en 'alleen een snapshot'.
-Een geschikte live status vervangt de kandidaat. Een retained snapshot overschrijft
-geen live toestand, veroorzaakt geen Homey onoff-update en geeft geen toestemming
-voor Power. Daarmee worden ook profieltriggers door onbevestigde snapshots voorkomen.
-De kandidaat is GEEN bewijs van actualiteit. Zonder aanvullende gevalideerde bron
-kunnen we deze snapshot niet veilig tot betrouwbare begintoestand promoveren.
+TRANSITION PROTECTION
+- Standard on/off commands and the Power button share one controller per device.
+- Identical requests share one transition. Conflicting requests retain only
+  the latest desired state.
+- Commands can be cancelled before publication if the requested or observed
+  state changes.
+- A pending transaction is stored before publication and is never replayed
+  automatically after restart.
+- Preparation is limited to 15 seconds. Status confirmation is limited to
+  20 seconds from publication start. The key transport retains its 12-second
+  timeout.
+- An uncertain outcome blocks further transitions until a suitable live target
+  status is received. Power commands are not automatically retried.
+- Status changes from the physical remote remain visible without continuous
+  enforcement of a previously requested state.
 
-BELANGRIJKE RESTBEPERKING
-Bij uitsluitend retained ontvangst is automatische Power-bediening NIET opgelost.
-De AAN/UIT-opdracht faalt na 10 seconden met de expliciete melding dat geen
-betrouwbare beginstatus is ontvangen en geen Power is verstuurd. Er verschijnt
-een apparaatwaarschuwing. Dit is de veilige foutafhandeling die de opdracht vereist;
-het is geen garantie dat de Mini na iedere herstart automatisch bedienbaar wordt.
-Wanneer een geschikte live status binnen de wachtperiode aankomt, kan het laatste
-doel normaal worden uitgevoerd. Komt die later, dan is een nieuw verzoek nodig.
-Onzekere eerdere Power-opdrachten blijven conservatief geblokkeerd tot een geschikte
-nieuwe live doelstatus; vroege buffered/retained berichten wissen het journal niet.
-Niet-retained vertraagde berichten op dezelfde verbinding zijn zonder Ziggo-
-tijdstempel/command-correlatie nog steeds niet altijd als oud herkenbaar.
-Het retained Power-publicatiebeleid blijft ongewijzigd wegens onvoldoende bewezen
-Ziggo-compatibiliteit voor een wijziging. Het bestaande retained-commandorisico blijft.
+WARNINGS AND DIAGNOSTICS
+- Device warnings indicate an unconfirmed power state or expired initialization.
+- Warning updates are serialized. A valid live state or completed transition
+  can clear the warning.
+- Diagnostic storage is serialized and limited to 250 entries.
+- Cleared diagnostic entries may reappear when another message is recorded.
 
-ONDERZOEK CPE.getUiStatus
-De primaire broncode van Sholofly/lghorizon-python gebruikt een JSON-bericht met
-type CPE.getUiStatus, een nieuw id en de MQTT-client-id als source op het
-household/device-topic. De library vraagt UI-status op bij callbackregistratie en
-bij ONLINE_RUNNING. Een ander berichtmodel verwerkt powerstatus uit state; het
-UI-model verwerkt UI/player/apps-status en messageTimeStamp.
-Bronnen:
-https://github.com/Sholofly/lghorizon-python/blob/dev/lghorizon/lghorizon_device.py
-https://github.com/Sholofly/lghorizon-python/blob/dev/lghorizon/lghorizon_models.py
+PROTOCOL LIMITATIONS
+- Retained messages do not establish that a reported state is current.
+- No additional CPE.getUiStatus query is enabled.
+- The last accepted live state remains usable during the same uninterrupted
+  status connection. Disconnection or monitor replacement invalidates it.
+- Status subscriptions use QoS 0 and do not guarantee delivery of every change.
+- Local status ordering does not establish a Ziggo command correlation ID.
+  A delayed live message cannot always be identified as outdated.
+- Key commands retain QoS 2 and retain=true. These settings do not guarantee
+  exactly one physical execution across the complete Ziggo service chain.
+- Protection covers commands from this app; independent clients and physical
+  remote actions can still change the device state.
 
-Dit bewijst een bestaande implementatie van een bedoeld statusverzoek zonder
-Power-toets, geen officiële Ziggo-garantie voor de Next Mini. Er is geen voldoende
-bewijs dat standby betrouwbaar antwoordt, dat een UI-antwoord het actuele power-
-state bevat, of dat het antwoord een eerder Power-commando sluitend bevestigt.
-Een ontbrekend UI-antwoord mag nooit als UIT worden geïnterpreteerd. De huidige
-app luistert alleen naar het apparaatstatus-topic; een UI-antwoordroute en eventuele
-registratie zouden eerst apart moeten worden gevalideerd. Geen getUiStatus-functie
-is geactiveerd en geen query is naar de Mini verstuurd.
-Een latere, expliciet toegestane protocoltest moet controleren: antwoordtopic,
-clientregistratie, standby versus running, timestamps/correlatie, en of de query
-geen onbedoelde state change veroorzaakt. Alleen daarna kan een read-only
-initialisatieopvraag automatisch worden ingezet.
+VALIDATION
+56 automated offline tests cover controller behavior, transport guards,
+initialization, reconnection, cancellation, transaction persistence,
+diagnostics, and concurrent requests.
 
-GEWIJZIGDE BESTANDEN IN DEZE REVISIE
-lib/ziggo.js: buffer, generatiebewaking, SUBACK-grantcontrole, fout/overflow-reset.
-lib/power-controller.js: retained initialCandidate, begrensde initialisatiewacht,
-  volledige-bufferverwerking vóór doelbeoordeling, geen buffered bevestiging.
-drivers/ziggo_next/device.js: waarschuwingen en annulering bij close vóór SUBACK.
-test/integration.test.js en test/power-controller.test.js: nieuwe regressietests.
-package.json: expliciete testbestanden, zodat .homeybuild-kopieën niet worden getest.
-README.md, RELEASE-0.0.23.txt en dit rapport: actuele opleverstatus.
-app.json wordt door de lokale CLI uit .homeycompose geregenereerd; semantische
-app-/driver-/capability-/Flow-identiteit blijft behouden.
-
-TESTEN
-56 tests geslaagd, 0 mislukt, 0 overgeslagen, alleen lokale mocks/VM-sandboxes.
-De eerdere concurrency-, transport-, journal- en timeouttests blijven aanwezig.
-Nieuwe tests: vroege FIFO-buffer; SUBACK-weigering; oud ACK bij reconnect; overflow;
-laatste buffered status verhindert onnodige Power; retained kandidaat plus live
-initialisatie; close vóór SUBACK; malformed vóór SUBACK; Homey-warning herstel;
-100 gelijktijdige initialisatieverzoeken; tegenstrijdige begindoelen; vaste deadline;
-geen replay na init-disconnect/timeout/shutdown; pending herstart niet vrijgeven
-met retained of buffered doelstatus; raw Power tijdens initialisatie.
-Het volledige testverslag is als afzonderlijk outputbestand beschikbaar.
-Deze tests bewijzen het lokale ontwerp, geen werkelijke Ziggo-statusfrequentie of
-de Homey-runtimewachttijd van bestaande Advanced Flows/Aqara-gebeurtenissen.
-
-HOMEY CLI-VALIDATIE
-De geïnstalleerde Homey CLI 3.12.2 is gebruikt via zijn officiële app/validate-
-commandhandler, met de echte preprocess- en homey-lib-validator op niveau debug.
-De CLI-bootstrap voor Athom-berichten/updates is overgeslagen. HTTP, HTTPS, sockets,
-DNS en fetch waren geblokkeerd; CLI-settings wijzen naar work/ in deze workspace.
-Geen login, Homey-selectie, run/install of dependency-installatie uitgevoerd.
-De debugvalidatie is geslaagd. Dit is ontwikkelvalidatie, geen App Store/publish-
-goedkeuring en geen hardwaretest. Het lokale .homeybuild staat buiten de bron-ZIP.
-
-OPLEVERING EN VOLGENDE STAP
-De nieuwe ZIP bevat de bron en tests, zonder node_modules/.homeybuild/.git.
-De ZIP vóór deze revisie en de v0.0.22-backup blijven beschikbaar.
-Voor betrouwbaar retained-only herstel is protocolvalidatie nog noodzakelijk;
-tot die tijd meldt deze revisie de onzekerheid en stuurt zij geen onveilige toggle.
-Installatie op Homey vereist uitdrukkelijke toestemming.
+The tests use simulated Homey and MQTT environments. They do not establish
+Ziggo status frequency, delivery guarantees, or Homey Flow timeout behavior.
+The status initialization implementation also passed offline Homey CLI
+debug-level validation on October 14, 2026.
