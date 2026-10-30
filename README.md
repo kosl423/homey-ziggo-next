@@ -200,3 +200,31 @@ node --test test/power-controller.test.js test/integration.test.js
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Known issues
+
+### v0.0.23: Power control times out after Repair
+
+Reported October 30, 2026, with Homey Pro, Ziggo Netherlands, and a Next Mini.
+
+After a successful Device Repair, switching the Mini on through Homey may fail with:
+
+```text
+Timeout after 10000 ms
+```
+
+The status connection can be established while the app has received only a retained status snapshot. Until a valid live status arrives, the power controller waits for an initial state and cancels the request after 10 seconds. In the reported incident, no Power command was transmitted during these attempts.
+
+**Workaround**
+
+1. Turn the Mini on once using the physical Ziggo remote.
+2. Wait until the Homey device shows the Mini as ON.
+3. Switch the Mini off and on again through the Homey device controls to confirm that control and status updates have recovered.
+
+This restored normal operation in the reported incident. No additional Repair or restart was required.
+
+**Investigation status**
+
+The original session-renewal failure remains under investigation. Configuration requests returned HTTP 500 before the session was reported as invalid, but a causal link has not been established. Session renewal succeeded again after Repair; power control resumed after the live status update triggered by the physical remote.
+
+This workaround addresses the missing initial live status after Repair. It does not resolve or explain the preceding authentication failure.
