@@ -6,7 +6,7 @@ This project connects Homey directly to Ziggo's online services. It does not req
 
 ## Status
 
-Version 0.0.23 has been tested with:
+Version 0.0.26 is a prerelease with persistent MQTT connection history and improved session recovery. It has been tested with:
 
 - Homey Pro
 - Ziggo Netherlands
@@ -14,9 +14,11 @@ Version 0.0.23 has been tested with:
 
 Homey software 10.0.0 or newer is required. Support for other Mediabox models and account configurations has not been comprehensively verified.
 
-All 56 automated offline tests pass. These use simulated Homey and MQTT environments and do not establish compatibility with every installation.
+All 152 automated offline tests pass. Local Homey debug validation also passes. On November 7, 2026, v0.0.26 was installed on a Homey Pro without removing the existing device or clearing its settings. MQTT subscription readiness and history persistence across an app restart were verified. Live status changes from the physical Ziggo remote were verified in both directions; the owner also confirmed successful on/off control from Homey.
 
-The previous release remains available through the [v0.0.22 tag](https://github.com/kosl423/homey-ziggo-next/tree/v0.0.22).
+Long-term stability and overnight reconnect recovery remain under evaluation. Offline tests and this limited field test do not establish compatibility with every installation.
+
+Earlier releases remain available through the [v0.0.23 tag](https://github.com/kosl423/homey-ziggo-next/tree/v0.0.23) and [v0.0.22 tag](https://github.com/kosl423/homey-ziggo-next/tree/v0.0.22).
 
 This is a community project and is not an official Ziggo or Athom application.
 
@@ -36,6 +38,7 @@ The current version supports:
 - Homey Flow support
 - Automatic Ziggo session renewal
 - Automatic reconnection attempts for the MQTT status connection
+- Persistent history of the latest 50 MQTT connection events, with read-only JSON viewing and copying in app settings
 - Device Repair for signing in again without removing the Homey device
 
 Version 0.0.23 introduces centralized power control. Concurrent requests for the same state share one transition; conflicting requests use the latest requested state. Outdated commands can be cancelled before transmission. A possibly transmitted Power command is not automatically retried after a timeout, connection loss, or restart.
@@ -48,7 +51,7 @@ The installation package is significantly smaller because development tools are 
 
 Changes made with the physical Ziggo remote can update the Homey power state while the status connection is working. Updates may be delayed or become stale during connection problems.
 
-See [RELEASE-0.0.23.txt](RELEASE-0.0.23.txt) for the release notes and [STATUSINITIALISATIE-0.0.23.txt](STATUSINITIALISATIE-0.0.23.txt) for technical details.
+See [RELEASE-0.0.26.txt](RELEASE-0.0.26.txt) for the current changes and validation limits. [RELEASE-0.0.23.txt](RELEASE-0.0.23.txt) and [STATUSINITIALISATIE-0.0.23.txt](STATUSINITIALISATIE-0.0.23.txt) describe the earlier power-control changes.
 
 ## Homey Flows
 
@@ -116,6 +119,8 @@ npx.cmd --no-install homey app install
 
 If installation fails, check the actual error and the working directory. Do not run `npm audit fix --force` blindly; it can introduce incompatible dependency changes.
 
+The bundled Homey CLI 3.0.0 has a reproduced upload-retry defect: after HTTP 401, its SDK may resend a consumed multipart upload incorrectly and report `Missing File`. The same behavior was reproduced in CLI 4.6.2; upgrading the CLI alone is not a demonstrated fix. If upload fails, inspect the installed app version and state before retrying. A successful exit code alone does not prove installation. The owner's v0.0.26 installation used the official upload method with automatic retry disabled; that installation safeguard is not part of this app's runtime code.
+
 See the official [Homey CLI documentation](https://apps.developer.homey.app/the-basics/getting-started/homey-cli) for further details.
 
 ## Pairing
@@ -142,9 +147,15 @@ A successful Repair checks that the discovered Mediabox matches the existing dev
 
 ## Session handling
 
-Ziggo authentication uses rotating tokens and cookies. The app attempts to renew the session automatically and stores updated session information on Homey.
+Ziggo authentication uses rotating tokens and cookies. Validation, refresh, persistence and Repair share a per-device lock. Session data, cookies, revision and refresh outcome are stored together in one versioned device-store record. New session data is persisted before requesting an MQTT token; concurrent callers share the same operation.
 
-Session renewal and reconnection depend on Ziggo accepting the session and its services being reachable. If renewal cannot recover the connection, use Repair to authenticate again.
+The app checks the current access token before requesting a refresh. Temporary configuration or MQTT-token service failures do not by themselves cause token rotation. A watchdog checks the session every 10 minutes; temporary failures use bounded retry delays. An ambiguous refresh response is recorded and is not blindly replayed with a possibly consumed refresh token. Repair can be required when the existing access token no longer works.
+
+Legacy v0.0.23 session fields migrate on first use and remain in place. Numeric, textual and absent refresh-token expiry metadata are supported without changing their representation or guessing units. A local digest detects changes to legacy fields; conflicting or malformed records require explicit recovery rather than guessing which session is current. A successful Repair can replace an invalid record after login and verification of the existing Mediabox identity.
+
+Downgrading to v0.0.23 can require Repair because it does not read the new record. Upgrading again after legacy fields have changed can require Repair again. Seamless rollback is not guaranteed. Versions 0.0.24 and 0.0.25 were local development stages; their session-handling improvements are included in this release.
+
+Authentication-related device availability is restored only after session verification and acknowledgment of the corresponding MQTT status subscription. This does not bypass the separate requirement for a valid live power status.
 
 ## Diagnostics
 
@@ -156,6 +167,18 @@ Device warnings indicate an unconfirmed power state or expired initialization. A
 
 Known issue: cleared diagnostic entries may reappear when another message is recorded.
 
+### MQTT connection history
+
+Version 0.0.26 adds an independent persistent history of up to 50 connection events across all devices. App settings can refresh the read-only JSON view and copy it, with manual selection if clipboard access is unavailable. No MQTT-history reset button is provided; clearing the ordinary diagnostic log does not clear this history.
+
+Events include monitor start/failure, reconnect, connected, subscription request/readiness, separate offline/error/close callbacks, connection loss and restoration. Each record has a UTC timestamp, a random app-run identifier, an anonymous device number, a monitor number, a connected-session generation and an attempt counter. The attempt counter includes monitor starts and native MQTT reconnects since the last ready event. Counters must be interpreted within their run and device.
+
+Records use a closed schema: no tokens, cookies, credentials, device/account identifiers, topics, raw error text or MQTT payloads are stored in this history. Its `error` event can also describe a subscription or status-processing failure; it does not expose the underlying error message.
+
+The newest events replace the oldest. There is no expiry by age, and 50 events do not guarantee a full night's coverage during repeated failures. History survives app restarts; a new run identifier distinguishes the new lifecycle. Restoration is recorded after a previously observed loss within the same device lifecycle, rather than inferred across an app restart. Ready/restored means the subscription is ready, not that live power status has been confirmed. Shutdown or intentional monitor replacement does not synthesize a loss event.
+
+Storage failures do not block connection or power handling. Recent events can be lost after a crash or storage failure; the next event retries the in-memory history. Removing the app removes its settings. Externally clearing the history while the app is running is unsupported because the in-memory history can repopulate it.
+
 Review and redact diagnostic information before sharing it. When reporting a problem, include the app version, Homey software version, Mediabox model, the attempted action, and the relevant error message.
 
 ## Privacy and security
@@ -163,7 +186,7 @@ Review and redact diagnostic information before sharing it. When reporting a pro
 - The Ziggo password is not stored by the app.
 - The Homey device store contains the Ziggo username, authentication tokens, session cookies, and account/device identifiers required for the connection.
 - Stored session credentials are sensitive and must be protected.
-- Diagnostics use token fingerprints and metadata. This does not guarantee that every error message is free of sensitive information.
+- General diagnostics may include metadata and operational error messages; review them before sharing. The separate MQTT history uses the restricted schema described above.
 - Never publish credentials, tokens, cookies, household identifiers, or device identifiers in issues, screenshots, or logs.
 
 ## Limitations
@@ -194,7 +217,7 @@ Describe the setup and provide steps to reproduce a problem, with sensitive info
 To run the offline tests:
 
 ```text
-node --test test/power-controller.test.js test/integration.test.js
+npm test
 ```
 
 ## License

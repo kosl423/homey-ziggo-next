@@ -1,10 +1,10 @@
 {
   "name": "homey-ziggo-next",
-  "version": "0.0.23",
+  "version": "0.0.26",
   "private": true,
   "main": "app.js",
   "scripts": {
-    "test": "node --test test/power-controller.test.js test/integration.test.js"
+    "test": "node --test test/power-controller.test.js test/integration.test.js test/auth.test.js test/recovery.test.js test/migration.test.js test/mqtt-history.test.js"
   },
   "engines": {
     "node": ">=18"

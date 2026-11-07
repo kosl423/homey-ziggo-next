@@ -6,6 +6,8 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {EventEmitter}=require('node:events');
 const PowerController=require('../lib/power-controller');
+const Auth=require('../lib/auth');
+global.fetch=()=>{throw new Error('Live HTTP forbidden in regression tests');};
 const flush=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 
@@ -20,6 +22,7 @@ function transport({ delaySubscribe = false } = {}) {
     if(id==='mqtt')return {connect:()=>{const c=new Client();clients.push(c);return c;}};
     if(id==='ws')return class {constructor(){throw new Error('Network forbidden in test');}};
     if(id==='node:crypto')return require(id);
+    if(id==='./auth')return Auth;
     throw new Error('Unexpected import '+id);
   },fetch:()=>{throw new Error('Network forbidden in test');},URL,Buffer,
   setTimeout:fn=>{timer=fn;return 1;},clearTimeout:()=>{}};
@@ -66,6 +69,7 @@ test('status monitor carries retain/dup, ignores other topics and malformed JSON
 });
 
 function deviceHarness() {
+  const mqttEvents=[];
   const listeners={},writes=[],calls=[],monitors=[],logs=[],warnings=[],store={},cap={onoff:false};
   class Device {
     log(){}error(){}hasCapability(){return true;}
@@ -84,12 +88,12 @@ function deviceHarness() {
     if(options?.onPublish?.()===false)return;
     calls.push(key);
   }};
-  const sandbox={module:{exports:{}},require:id=>id==='homey'?{Device}:id.includes('power-controller')?PowerController:ziggo,
+  const sandbox={module:{exports:{}},require:id=>id==='homey'?{Device}:id.includes('power-controller')?PowerController:id==='../../lib/auth'?Auth:ziggo,
     setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){}};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../drivers/ziggo_next/device.js'),'utf8'),sandbox);
-  const d=new sandbox.module.exports();d.homey={app:{recordDiag:x=>logs.push(x)}};
+  const d=new sandbox.module.exports();d.homey={app:{recordDiag:x=>logs.push(x),recordMqttEvent:(_,event,fields)=>mqttEvents.push({event,...fields})}};
   d.ensureSessionLocked=async()=>({session:{},mqttToken:'mock'});
-  return {d,listeners,writes,calls,monitors,logs,warnings,store,ziggo,
+  return {d,listeners,writes,calls,monitors,logs,warnings,store,ziggo,mqttEvents,
     status:(state,metadata={})=>monitors.at(-1).onStatus({state,source:'box'},metadata)};
 }
 
@@ -250,4 +254,38 @@ test('retained-only initialization warns clearly; valid live status clears warni
   h.status('ONLINE_STANDBY',{retain:true});await flush();assert.match(h.warnings.at(-1),/live status/);
   assert.deepEqual(h.calls,[]);h.status('ONLINE_STANDBY');await flush();assert.equal(h.warnings.at(-1),null);
   await h.d.onDeleted();
+});
+
+test('MQTT history distinguishes loss types, reconnect attempts and ready recovery without exposing errors',async()=>{
+  const h=deviceHarness();await h.d.onInit();await flush();
+  const first=h.monitors[0]; first.onConnect();first.onSubscribed();
+  first.onOffline();first.onError(new Error('PRIVATE_TOKEN'));first.onClose();first.onReconnect();
+  const outage=h.mqttEvents.map(e=>e.event);
+  assert.deepEqual(outage,['monitor.start','connected','subscribe','ready','offline','connection.lost','error','close','reconnect']);
+  assert.equal(h.mqttEvents.at(-1).attempt,1);
+  await h.d.startStatusMonitor(); const next=h.monitors.at(-1);
+  const count=h.mqttEvents.length;first.onConnect();first.onSubscribed();first.onError();first.onReconnect();
+  assert.equal(h.mqttEvents.length,count);
+  next.onConnect();next.onSubscribed();
+  assert.deepEqual(h.mqttEvents.slice(-4).map(e=>e.event),['connected','subscribe','ready','connection.restored']);
+  assert.equal(h.mqttEvents.at(-1).generation,2);
+  assert.equal(h.mqttEvents.at(-1).monitor,2);
+  assert.ok(!JSON.stringify(h.mqttEvents).includes('PRIVATE'));
+  await h.d.onDeleted();next.onClose();assert.equal(h.mqttEvents.at(-1).event,'connection.restored');
+});
+
+test('history failure cannot interrupt status mirroring or power readiness',async()=>{
+  const h=deviceHarness();h.d.homey.app.recordMqttEvent=()=>{throw Error('storage failed');};
+  await h.d.onInit();await flush();const monitor=h.monitors[0];monitor.onConnect();monitor.onSubscribed();
+  h.status('ONLINE_RUNNING');await flush();assert.deepEqual(h.writes,[true]);assert.equal(h.d.power.state,'ready');
+  await h.d.onDeleted();
+});
+
+test('failed subscription records error and loss but never ready or restored',async()=>{
+  const h=deviceHarness(),wire=transport({delaySubscribe:true});
+  h.ziggo.monitorStatus=(...args)=>wire.api.monitorStatus(wire.config,wire.session,'box','mock',args.at(-1));
+  await h.d.onInit();await flush();const client=wire.clients[0];client.emit('connect');
+  client.subscribeCallback(null,[{qos:128}]);
+  assert.deepEqual(h.mqttEvents.map(e=>e.event),['monitor.start','connected','subscribe','error','connection.lost']);
+  assert.deepEqual(h.calls,[]);await h.d.onDeleted();
 });

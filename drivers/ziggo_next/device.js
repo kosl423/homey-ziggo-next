@@ -2,6 +2,7 @@
 const Homey = require('homey');
 const Ziggo = require('../../lib/ziggo');
 const PowerController = require('../../lib/power-controller');
+const { AuthClient, SessionManager, AuthError, asAuthError, emit } = require('../../lib/auth');
 
 class ZiggoNextDevice extends Homey.Device {
   async onInit() {
@@ -17,6 +18,14 @@ class ZiggoNextDevice extends Homey.Device {
     this.journalQueue = Promise.resolve();
     this.warningQueue = Promise.resolve();
     this.deleted = false;
+    this.authRetryAt = 0;
+    this.authRetryAttempt = 0;
+    this.authRetryTimer = null;
+    this.authUnavailable = false;
+    this.authConnectionReady = false;
+    this.authAvailabilityQueue = Promise.resolve();
+    this.authRecoveryEpoch = 0;
+    this.authRepairEpoch = 0;
     this.power = new PowerController({
       prepare: async signal => {
         const config = await Ziggo.getConfig();
@@ -84,7 +93,7 @@ class ZiggoNextDevice extends Homey.Device {
     });
 
     // Keep Homey's native on/off state synchronized with Ziggo's realtime status.
-    this.startStatusMonitor().catch(() => { this.diag('STATUS start.failed'); this.scheduleStatusRestart(); });
+    this.startStatusMonitor().catch(() => { this.mqttEvent('monitor.failed'); this.diag('STATUS start.failed'); this.scheduleStatusRestart(); });
 
     // Runs on Homey itself, so laptop standby does not interrupt the lifecycle test.
     this.sessionWatchdogTimer = setInterval(() => {
@@ -92,29 +101,35 @@ class ZiggoNextDevice extends Homey.Device {
     }, 10 * 60 * 1000);
   }
 
+  mqttEvent(event) {
+    try {
+      this.homey.app.recordMqttEvent(this, event, {
+        monitor: this.monitorEpoch || 0,
+        generation: this.connectionSequence || 0,
+        attempt: this.mqttReconnectAttempt || 0,
+      });
+    } catch (_) {} // Diagnostic failures must not change device behavior.
+  }
+
   getStoredSession() {
-    return {
-      username: this.getStoreValue('username'),
-      householdId: this.getStoreValue('householdId'),
-      accessToken: this.getStoreValue('accessToken'),
-      refreshToken: this.getStoreValue('refreshToken'),
-      refreshTokenExpiry: this.getStoreValue('refreshTokenExpiry'),
-      hashedCustomerId: this.getStoreValue('hashedCustomerId'),
-      cookieHeader: this.getStoreValue('cookieHeader') || '',
-    };
+    return this.getAuth().snapshot();
   }
 
   async persistSession(session, cookies = '') {
-    await Promise.all([
-      this.setStoreValue('username', session.username),
-      this.setStoreValue('householdId', session.householdId),
-      this.setStoreValue('accessToken', session.accessToken),
-      this.setStoreValue('refreshToken', session.refreshToken),
-      this.setStoreValue('refreshTokenExpiry', session.refreshTokenExpiry || null),
-      this.setStoreValue('hashedCustomerId', session.hashedCustomerId || this.getStoreValue('hashedCustomerId') || null),
-      this.setStoreValue('cookieHeader', cookies || this.getStoreValue('cookieHeader') || ''),
-    ]);
-    this.log(`SESSIE persist: ${JSON.stringify({...Ziggo.tokenMeta(this.getStoredSession()), cookies: Ziggo.cookieMeta(this.getStoreValue('cookieHeader') || '')})}`);
+    return this.repairSession(async () => ({ session, cookies }));
+  }
+
+  repairSession(authenticate) {
+    if (this.authRepairPromise) return Promise.reject(new AuthError('repair_busy', 'repair'));
+    this.authRepairEpoch = (this.authRepairEpoch || 0) + 1;
+    const previous = this.sessionRefreshPromise;
+    const work = (async () => {
+      if (previous) await previous.catch(() => {});
+      await this.getAuth().repair(authenticate);
+      this.resetAuthRetry();
+    })().finally(() => { if (this.authRepairPromise === work) this.authRepairPromise = null; });
+    this.authRepairPromise = work;
+    return work;
   }
 
 
@@ -142,67 +157,116 @@ class ZiggoNextDevice extends Homey.Device {
   }
 
 
-  async ensureSessionLocked(config) {
-    // A Ziggo refresh token may be rotated/one-shot. Never allow the status
-    // monitor and a key command to refresh the same stored token concurrently.
-    if (this.sessionRefreshPromise) {
-      this.log('Sessiediagnose: wacht op reeds lopende sessievernieuwing.');
-      return this.sessionRefreshPromise;
+  getAuth() {
+    if (!this.auth) {
+      const diagnostic = (event, fields) => this.authDiagnostic(event, fields);
+      this.auth = new SessionManager({
+        storage: { get: key => this.getStoreValue(key), set: (key, value) => this.setStoreValue(key, value) },
+        client: new AuthClient({ diagnostic }), diagnostic,
+      });
     }
-    const seq = ++this.sessionDiagSeq;
-    const diag = (event, data = {}) => {
-      // Fingerprints are one-way SHA-256 prefixes: enough to compare token rotation,
-      // never enough to reconstruct or use a Ziggo token.
-      this.log(`SESSIE[${seq}] ${event}: ${JSON.stringify(data)}`);
-    };
-    const stored = this.getStoredSession();
-    diag('ensure.begin', {...Ziggo.tokenMeta(stored), cookies: Ziggo.cookieMeta(stored.cookieHeader)});
-    this.sessionRefreshPromise = Ziggo.ensureSession(config, stored, stored.cookieHeader, diag)
-      .then(result => {
-        diag('ensure.success', { refreshed: result.refreshed, session: Ziggo.tokenMeta(result.session), cookies: Ziggo.cookieMeta(result.cookies) });
-        return result;
-      })
-      .catch(async err => {
-  const now = this.getStoredSession();
-
-  diag('ensure.failed', {
-    error: 'session_failed',
-    stored: Ziggo.tokenMeta(now),
-    cookies: Ziggo.cookieMeta(now.cookieHeader)
-  });
-
-  if (/invalid token/i.test(err.message || '')) {
-    const message = 'Ziggo-sessie verlopen. Repareer het apparaat om opnieuw in te loggen.';
-
-    this.diag(`SESSIE ongeldig: ${message}`);
-
-    try {
-      await this.setUnavailable(message);
-    } catch (setUnavailableError) {
-      this.error(`Apparaat op Ongeschikbaar zetten mislukt: ${setUnavailableError.message}`);
-    }
-
-    throw new Error(message);
+    return this.auth;
   }
 
-  throw err;
-})
-      .finally(() => { this.sessionRefreshPromise = null; });
-    return this.sessionRefreshPromise;
+  authDiagnostic(event, fields = {}) {
+    emit((name, safe) => this.diag(`AUTH ${name} ${JSON.stringify(safe)}`), event, fields);
   }
 
-  async runSessionWatchdog() {
-    const config = await Ziggo.getConfig();
-    const { session, cookies, refreshed } = await this.ensureSessionLocked(config);
-    if (refreshed) {
-      await this.persistSession(session, cookies);
-      this.diag('WATCHDOG: Ziggo-sessie vernieuwd en tokens/cookies opgeslagen.');
+  resetAuthRetry() {
+    this.authRetryAt = 0;
+    this.authRetryAttempt = 0;
+    if (this.authRetryTimer) clearTimeout(this.authRetryTimer);
+    this.authRetryTimer = null;
+  }
+
+  async handleAuthFailure(error) {
+    const safe = asAuthError(error);
+    if (this.deleted) return new AuthError('stopped', 'session');
+    this.authDiagnostic('auth.failure', safe);
+    if (safe.requiresRepair) {
+      this.authUnavailable = true;
+      this.authConnectionReady = false;
+      this.authRecoveryEpoch = (this.authRecoveryEpoch || 0) + 1;
+      const write = (this.authAvailabilityQueue || Promise.resolve()).then(() => {
+        if (!this.deleted) return this.setUnavailable(safe.message);
+      }).catch(() => this.authDiagnostic('auth.availability.failed', { phase: 'unavailable' }));
+      this.authAvailabilityQueue = write;
+      await write;
     }
+    if (!this.deleted && !this.authRetryTimer) {
+      this.authRetryAttempt = (this.authRetryAttempt || 0) + 1;
+      const base = safe.requiresRepair || safe.kind === 'refresh_uncertain' ? 600000
+        : Math.min(600000, 30000 * 2 ** Math.min(this.authRetryAttempt - 1, 5));
+      const delay = Math.min(600000, Math.round(base * (0.9 + Math.random() * 0.2)));
+      this.authRetryAt = Date.now() + delay;
+      this.authDiagnostic('auth.retry.scheduled', { phase: safe.phase, attempt: this.authRetryAttempt, delayMs: delay });
+      this.authRetryTimer = setTimeout(() => {
+        this.authRetryTimer = null;
+        this.runSessionWatchdog().catch(() => {});
+      }, delay);
+    }
+    return safe;
   }
 
-  async startStatusMonitor() {
+  ensureSessionLocked(config) {
+    if (this.deleted) return Promise.reject(new AuthError('stopped', 'session'));
+    if (this.authRepairPromise) return this.authRepairPromise.then(() => this.ensureSessionLocked(config));
+    if (this.sessionRefreshPromise) return this.sessionRefreshPromise;
+    if ((this.authRetryAt || 0) > Date.now()) return Promise.reject(new AuthError('server', 'backoff'));
+    const epoch = this.authRepairEpoch || 0;
+    const flight = this.getAuth().ensure(config)
+      .then(result => { if (epoch === (this.authRepairEpoch || 0)) this.resetAuthRetry(); return result; })
+      .catch(async error => { throw epoch === (this.authRepairEpoch || 0) ? await this.handleAuthFailure(error) : asAuthError(error); })
+      .finally(() => { if (this.sessionRefreshPromise === flight) this.sessionRefreshPromise = null; });
+    this.sessionRefreshPromise = flight;
+    return flight;
+  }
+
+  runSessionWatchdog() {
+    if (this.deleted || (this.authRetryAt || 0) > Date.now()) return Promise.resolve();
+    if (this.authRepairPromise) return this.authRepairPromise.then(() => this.runSessionWatchdog());
+    if (this.watchdogPromise) return this.watchdogPromise;
+    const epoch = this.authRepairEpoch || 0;
+    const work = (async () => {
+      try {
+        const config = await Ziggo.getConfig({ diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
+        const authentication = await this.ensureSessionLocked(config);
+        if (this.deleted || epoch !== (this.authRepairEpoch || 0)) return;
+        if (this.authUnavailable) await this.startStatusMonitor(authentication);
+        this.authDiagnostic('auth.watchdog.succeeded', { phase: 'watchdog' });
+      } catch (error) {
+        // ensureSessionLocked already schedules its failures. Config failures
+        // reach this catch before that method is called.
+        const safe = this.authRetryTimer || epoch !== (this.authRepairEpoch || 0) ? asAuthError(error) : await this.handleAuthFailure(error);
+        throw safe;
+      }
+    })().finally(() => { if (this.watchdogPromise === work) this.watchdogPromise = null; });
+    this.watchdogPromise = work;
+    return work;
+  }
+
+  async restoreAuthAvailability() {
+    const epoch = this.authRecoveryEpoch || 0;
+    const write = (this.authAvailabilityQueue || Promise.resolve()).then(async () => {
+      if (this.deleted || !this.authUnavailable || !this.authConnectionReady || epoch !== (this.authRecoveryEpoch || 0)) return;
+      const auth = this.getAuth();
+      if (auth.verifiedRevision === null || auth.verifiedRevision !== this.authConnectionRevision) return;
+      await this.setAvailable();
+      if (this.deleted || epoch !== (this.authRecoveryEpoch || 0)) return;
+      this.authUnavailable = false;
+      this.authDiagnostic('auth.availability.restored', { phase: 'status_subscription', revision: auth.verifiedRevision });
+    });
+    this.authAvailabilityQueue = write.catch(() => {});
+    return write;
+  }
+
+  async startStatusMonitor(authentication = null) {
     if (this.deleted) return;
+    if (!authentication && (this.authRetryAt || 0) > Date.now()) throw new AuthError('server', 'backoff');
+    this.authConnectionReady = false;
     const epoch = ++this.monitorEpoch;
+    this.mqttReconnectAttempt = (this.mqttReconnectAttempt || 0) + 1;
+    this.mqttEvent('monitor.start');
     this.power.disconnect(this.connectionSequence);
     if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);
     this.statusReconnectTimer = null;
@@ -210,8 +274,8 @@ class ZiggoNextDevice extends Homey.Device {
       try { this.statusClient.end(true); } catch (_) {}
       this.statusClient = null;
     }
-    const config = await Ziggo.getConfig();
-    const { session, mqttToken, cookies, refreshed } = await this.ensureSessionLocked(config);
+    const config = authentication?.config || await Ziggo.getConfig({ diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
+    const { session, mqttToken, cookies, refreshed, authRevision } = authentication || await this.ensureSessionLocked(config);
     if (refreshed) {
       await this.persistSession(session, cookies);
       this.log('Statusmonitor: Ziggo-sessie vernieuwd en nieuwe tokens opgeslagen.');
@@ -221,13 +285,22 @@ class ZiggoNextDevice extends Homey.Device {
       onConnect: () => {
         if (epoch !== this.monitorEpoch || this.deleted) return;
         ++this.connectionSequence;
+        this.mqttEvent('connected');
+        this.mqttEvent('subscribe');
         this.diag(`STATUS connected generation=${this.connectionSequence}`);
       },
       onSubscribed: () => {
         if (epoch === this.monitorEpoch && !this.deleted) {
           if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);
           this.statusReconnectTimer = null;
+          this.mqttEvent('ready');
+          if (this.mqttConnectionLost) this.mqttEvent('connection.restored');
+          this.mqttConnectionLost = false;
+          this.mqttReconnectAttempt = 0;
           this.power.connect(this.connectionSequence);
+          this.authConnectionReady = true;
+          this.authConnectionRevision = authRevision;
+          this.restoreAuthAvailability().catch(() => this.authDiagnostic('auth.availability.failed', { phase: 'available' }));
         }
       },
       onStatus: (message, metadata) => {
@@ -246,15 +319,24 @@ class ZiggoNextDevice extends Homey.Device {
           }).catch(() => this.diag('STATUS capability.write.failed'));
         }
       },
-      onReconnect: () => { if (epoch === this.monitorEpoch) this.diag('STATUS reconnect'); },
-      onOffline: () => this.statusDisconnected(epoch),
-      onError: () => this.statusDisconnected(epoch),
-      onClose: () => this.statusDisconnected(epoch),
+      onReconnect: () => {
+        if (epoch !== this.monitorEpoch || this.deleted) return;
+        ++this.mqttReconnectAttempt;
+        this.mqttEvent('reconnect');
+        this.diag('STATUS reconnect');
+      },
+      onOffline: () => this.statusDisconnected(epoch, 'offline'),
+      onError: () => this.statusDisconnected(epoch, 'error'),
+      onClose: () => this.statusDisconnected(epoch, 'close'),
     });
   }
 
-  statusDisconnected(epoch) {
+  statusDisconnected(epoch, type = 'close') {
     if (epoch !== this.monitorEpoch || this.deleted) return;
+    this.mqttEvent(type);
+    if (!this.mqttConnectionLost) this.mqttEvent('connection.lost');
+    this.mqttConnectionLost = true;
+    this.authConnectionReady = false;
     this.actualPowerState = null;
     // A socket can close before SUBACK, before the controller knows its generation.
     this.power.cancelInitialization('Statusverbinding verbroken tijdens initialisatie.');
@@ -266,12 +348,14 @@ class ZiggoNextDevice extends Homey.Device {
     if (this.deleted || this.statusReconnectTimer) return;
     this.statusReconnectTimer = setTimeout(() => {
       this.statusReconnectTimer = null;
-      this.startStatusMonitor().catch(() => { this.diag('STATUS restart.failed'); this.scheduleStatusRestart(); });
+      this.startStatusMonitor().catch(() => { this.mqttEvent('monitor.failed'); this.diag('STATUS restart.failed'); this.scheduleStatusRestart(); });
     }, 10000);
   }
 
   async onDeleted() {
     this.deleted = true;
+    if (this.authRetryTimer) clearTimeout(this.authRetryTimer);
+    this.authRetryTimer = null;
     ++this.monitorEpoch;
     this.power?.close();
     if (this.statusReconnectTimer) clearTimeout(this.statusReconnectTimer);

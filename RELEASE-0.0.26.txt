@@ -1,0 +1,84 @@
+Ziggo Next for Homey v0.0.26
+Persistent MQTT connection history and resilient session recovery
+Prerelease — November 7, 2026
+
+MQTT CONNECTION HISTORY
+- Store the latest 50 connection events separately from the existing 250-entry
+  diagnostic log. Retention is shared across devices and bounded by event count,
+  with no expiry by age.
+- Include UTC timestamps, a random app-run identifier, anonymous device number,
+  monitor, connected-session generation and connection-attempt counter.
+- Record monitor start/failure, native reconnect attempts, connected, subscription
+  request, ready, separate offline/error/close callbacks, connection loss and
+  restoration after a successful subscription within the same device lifecycle.
+- Retain history across app restarts. Old runs remain distinguishable from the
+  new run; restoration is not inferred across restarts.
+- Provide a read-only JSON view and copying in app settings, with a manual-copy
+  fallback. Clearing the ordinary diagnostic log leaves this history intact.
+- Use a closed schema that excludes tokens, cookies, credentials, account/device
+  identifiers, topics, raw error text and MQTT payloads.
+- Coalesce concurrent writes with one active writer and a bounded memory buffer.
+  History-storage errors do not block connection handling or power control.
+
+SESSION RECOVERY SINCE THE PREVIOUS PUBLIC RELEASE (v0.0.23)
+The local v0.0.24 and v0.0.25 improvements are included in this prerelease:
+- Serialize session checks, refresh, persistence and Repair per device. Store
+  tokens, cookies, revision and refresh outcome together in a versioned record.
+- Save refresh intent before requesting rotation and persist new session data
+  before requesting an MQTT token. Concurrent callers share one operation.
+- Check the existing access token first. Temporary configuration and MQTT-token
+  service errors do not automatically trigger token rotation.
+- Record ambiguous refresh outcomes and avoid replaying a possibly consumed
+  refresh token. Continue checking the existing access token; Repair may still
+  be needed when recovery is not possible.
+- Add a session watchdog, bounded retry delays and explicit authentication
+  diagnostic metadata. Restore availability after verified authentication and
+  status-subscription acknowledgment.
+- Migrate legacy session fields and detect conflicts without guessing which
+  session is current. Repair can replace a malformed record after successful
+  authentication and verification of the existing Mediabox identity.
+- Accept finite nonnegative numeric refresh-token expiry metadata, as well as
+  text or absent/null metadata, without changing representation or units.
+
+COMPATIBILITY AND VALIDATION
+- Homey Pro with Homey software 10.0.0 or later; field testing used Homey Pro,
+  Ziggo Netherlands and a Ziggo Next Mini. Other setups are not comprehensively
+  verified.
+- App ID, driver ID, capabilities and Flow definitions remain unchanged.
+- Dependencies remain unchanged. The power controller and MQTT status transport
+  are unchanged from the stable local v0.0.25 baseline.
+- All 152 automated offline tests pass, including authentication, migration,
+  watchdog, status buffering and power regression tests, plus MQTT-history tests.
+- Local Homey debug validation passes.
+- Installed on November 7, 2026, preserving the existing device and settings.
+- A real app restart retained the first four MQTT events and added four events
+  under a new run identifier; the status subscription became ready again.
+- Live status updates following physical-remote on/off changes were verified in
+  both directions. The owner confirmed successful on/off control from Homey.
+- The owner reported one week of stable v0.0.25 operation before this upgrade;
+  this does not establish long-term stability of v0.0.26.
+
+LIMITATIONS
+- Long-term stability, overnight reconnect recovery and history coverage remain
+  under evaluation. This is a prerelease, not a claim of universal compatibility.
+- Fifty events can be exhausted during repeated failures. Crash or storage errors
+  can lose recent events; history is not a complete MQTT trace or audit trail.
+- Ready/restored identifies subscription readiness, not confirmed live power state.
+- Valid live status is still required for power control after startup/reconnect.
+  The physical-remote workaround documented for v0.0.23 remains relevant.
+- The general diagnostic log retains its existing clear-buffer limitation:
+  cleared entries may reappear when another diagnostic message is recorded.
+- Downgrading to v0.0.23 and upgrading again may require Repair because of legacy
+  session-store differences. Seamless rollback is not guaranteed.
+- The Homey CLI upload-retry defect after HTTP 401 is external to this app. The
+  owner's installation disabled automatic retry for the upload. A CLI upgrade
+  alone was not a demonstrated solution. Check actual installed state after an
+  upload error rather than assuming success or blindly repeating the upload.
+- No app-store release or independent confirmation of television/receiver state
+  is implied by this GitHub prerelease.
+
+INSTALLATION AND TESTS
+See README.md for the manual installation procedure, migration considerations,
+diagnostics, privacy and known issues. Do not remove the existing Homey device
+solely to upgrade. Run the complete offline suite with npm test.
+The v0.0.23 and v0.0.22 tags remain available and unchanged.

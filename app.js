@@ -1,10 +1,11 @@
 'use strict';
 const Homey = require('homey');
+const { MqttHistory } = require('./lib/mqtt-history');
 
 class ZiggoNextApp extends Homey.App {
   async onInit() {
-    this.log('Ziggo Next v0.0.23 gestart.');
-    this.recordDiag('APP v0.0.23 gestart');
+    this.log('Ziggo Next v0.0.26 gestart.');
+    this.recordDiag('APP v0.0.26 gestart');
     const goToChannel = this.homey.flow.getActionCard('go_to_channel');
     goToChannel.registerRunListener(async args => {
       const channel = Number(args.channel);
@@ -12,6 +13,15 @@ class ZiggoNextApp extends Homey.App {
       await args.device.goToChannel(channel);
       return true;
     });
+  }
+
+  recordMqttEvent(device, event, fields) {
+    if (!this.mqttHistory) this.mqttHistory = new MqttHistory(this.homey.settings);
+    this.mqttHistory.record(device, event, fields);
+  }
+
+  async onUninit() {
+    await this.mqttHistory?.flush();
   }
 
   recordDiag(message) {

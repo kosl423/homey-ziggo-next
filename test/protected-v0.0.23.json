@@ -1,0 +1,65 @@
+{
+  "files": {
+    ".homeycompose/capabilities/ziggo_back.json": "CB7AB9CC5F7FE5C40A2A6A39552C93A14827AE17BCC6E75F57660CB7FFC622A6",
+    "lib/power-controller.js": "82392F2C46D2A3BF28086D898E90814D4686BB3A5F6CDC4B0829000BB2FAA570",
+    ".homeycompose/capabilities/ziggo_channel_down.json": "3F33EBE9D29D61DD3B06AE006CFD0AD89C53FCD6C55BAE819C6CEFA9F60E08EF",
+    ".homeycompose/capabilities/ziggo_digit_5.json": "643C90303CADAE50A059CBA6FC54867F57A27039F475029B99A6205AFB61E4E6",
+    ".homeycompose/capabilities/ziggo_power.json": "EBF1F0657329AFAE1B3FEBF56C188F42A6EC9EB3FFD85F8DC8F2397354A77806",
+    ".homeycompose/capabilities/ziggo_digit_2.json": "D66D7C4D8B87420EC4AF04EC302E81529F20EDEE075BB99169F83A626E753192",
+    ".homeycompose/capabilities/ziggo_digit_6.json": "842579A5CC81030B461B1387DFB88D1C5C4051E928AEB0A0676CD77CC5CE10F8",
+    ".homeycompose/capabilities/ziggo_digit_3.json": "4151E5A93100634E7E3A31DF29C2D24FDB8ECC2F55BE48D950976B73909D5CA1",
+    ".homeycompose/capabilities/ziggo_nav_left.json": "FED1F680627D4182CB7117FF49FE33B80EA73F489DE62AF2B3AFD5DD7D3634F7",
+    ".homeycompose/capabilities/ziggo_ok.json": "75B8E3640665530BC3AA89EF3FE868CFE56E2E249859F7600AA58E96ACC90A0E",
+    ".homeycompose/flow/actions/go_to_channel.json": "35D7E04C736697680B2D6DD30EF4EFB832188D490FDDE27B82EC93D4285251DB",
+    ".homeycompose/capabilities/ziggo_digit_0.json": "8C69FD2B537F719D387E93F65F6F375534F5F46609F736806394700B0AE5F274",
+    ".homeycompose/capabilities/ziggo_nav_up.json": "DD44AC1742D2F2E827936684A05697EEB07940CC9C2C99E5A1D0424AE3ECD741",
+    "drivers/ziggo_next/driver.compose.json": "EA664B9BCDC9E2F71BD5BBFA86ED3781A93234BA803EA19CFADAB5D41A6A904D",
+    ".homeycompose/capabilities/ziggo_digit_1.json": "AF4F515F11D5A43A86CF4935256453A901226217AB62D85EA355D6418CD3A27B",
+    ".homeycompose/capabilities/ziggo_nav_down.json": "DD1E54413042AB40CEE56E05B1D8067190F39CEC8926213C87B9A560AA207E3D",
+    ".homeycompose/capabilities/ziggo_nav_right.json": "9E40EC9EA572E09BF6781F4D524A6AD3508F9D70AF636157A337F7D156460D2B",
+    ".homeycompose/capabilities/ziggo_digit_4.json": "3A87AF5F5C9EEFDFAED8DF2A048F41B6EBE4A8B2D9E368C71DDCC65D9460C65B",
+    ".homeycompose/capabilities/ziggo_channel_up.json": "63885DE9FCAC636DCEE30D4EE79E0ED2C06AC97C4D209A37907021B738D259A7",
+    ".homeycompose/capabilities/ziggo_digit_9.json": "DB61D8644D5E45EB44262C0E9F8675173DA683FAA37151AC29AF6507F2BDC244",
+    ".homeycompose/capabilities/ziggo_digit_8.json": "12000930F52AF55B0918FE5043FF70F70C44BE526E972ED5708C456DAC8F7FEC",
+    ".homeycompose/capabilities/ziggo_digit_7.json": "F35D5005831DBF7850D13E8127BB61B0591EB09D74E98A12E6645F7E2B6464CD",
+    "test/power-controller.test.js": "12D94EE5B614FEE950FFB943C6130D21E18D21D27488D3CD60B9A18937C88BE5"
+  },
+  "segments": {
+    "powerSetup": {
+      "file": "drivers/ziggo_next/device.js",
+      "start": "    this.power = new PowerController({",
+      "end": "    for (const capability",
+      "sha256": "4FC3FBE7BC672D6BA4911DDFF91D794C7C89FA769276CA7C1ED7AA3D8EA5809F"
+    },
+    "powerAndKeyListeners": {
+      "file": "drivers/ziggo_next/device.js",
+      "start": "    // Native Homey power state.",
+      "end": "    // Keep Homey",
+      "sha256": "988CA734E5B5BDA634079DEDA6820BDD74E41D9E48F1E1F3D5A98EF635088E26"
+    },
+    "retainedStatusProcessing": {
+      "file": "drivers/ziggo_next/device.js",
+      "start": "      onStatus: (message, metadata) => {",
+      "end": "      onReconnect:",
+      "sha256": "88C4EB00B70B381440406C5F0F89BC7B40109594163430F5C4050A20743DF1C8"
+    },
+    "powerTransport": {
+      "file": "lib/ziggo.js",
+      "start": "function sendKey(",
+      "end": "function monitorStatus(",
+      "sha256": "B06B8F106615A89E4B0D1181B25B26FA5BB1A40691CADF84C0FCBD2CE1CA430E"
+    },
+    "mqttStatusBufferAndRetain": {
+      "file": "lib/ziggo.js",
+      "start": "function monitorStatus(",
+      "end": "module.exports =",
+      "sha256": "5B38FFB510C9BA11532EF8E1FDC0503A1A1A08C22081A282C5F1906FFD8172B4"
+    },
+    "channelFlowsAndKeyRouting": {
+      "file": "drivers/ziggo_next/device.js",
+      "start": "  async goToChannel(",
+      "end": "module.exports =",
+      "sha256": "296EB06D0FCD2CEFFDEFC1747149463671378E8833476063AE287BE38A15ECD0"
+    }
+  }
+}

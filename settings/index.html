@@ -23,11 +23,47 @@
 <br>
 <button id="clear" class="homey-button-secondary-full">Diagnose wissen</button>
 
+<h2>MQTT-gebeurtenisgeschiedenis (concept v0.0.26)</h2>
+<p>De laatste 50 verbindingsgebeurtenissen, oudste eerst, met UTC-tijdstempels.
+Deze geschiedenis blijft bewaard bij een app-herstart en staat los van de 250 diagnoseregels.
+Nieuwe gebeurtenissen vervangen de oudste; er is geen bewaartermijn in dagen.
+Veel storingen kunnen daarom een nacht uit de geschiedenis verdringen.</p>
+<p>Run onderscheidt app-starts; device is een anoniem volgnummer binnen die run.
+Monitor telt monitorstarts, generation telt verbonden sessies en attempt telt pogingen sinds de laatste ready (eerste poging = 1).
+Ready betekent dat de status-subscription gereed is; live powerstatus kan nog ontbreken.
+Connection.restored betekent herstel na een eerder geregistreerd verlies binnen dezelfde app-run.</p>
+<button id="mqtt-refresh" class="homey-button-secondary-full">MQTT-geschiedenis verversen</button>
+<textarea id="mqtt-result" readonly aria-label="MQTT-gebeurtenisgeschiedenis als JSON"
+  style="width:100%;height:35vh;box-sizing:border-box;margin-top:16px;font-family:monospace;"></textarea>
+<button id="mqtt-copy" class="homey-button-secondary-full">MQTT-geschiedenis kopiëren (JSON)</button>
+<p>Alleen lezen en kopiëren: deze knoppen veranderen geen verbinding of instellingen.
+‘Diagnose wissen’ wist uitsluitend het gewone diagnoselog. Er is hier bewust geen MQTT-resetknop.
+Verwijderen van de app wist ook deze geschiedenis. Bij een crash of opslagfout kunnen recente gebeurtenissen ontbreken.
+Geen tokens, cookies, apparaat-ID's, topics, foutteksten of MQTT-payloads worden opgeslagen.</p>
+
 <script>
 function onHomeyReady(Homey) {
   Homey.ready();
 
   const r = document.getElementById('result');
+  const mqttResult = document.getElementById('mqtt-result');
+
+  function loadMqtt() {
+    Homey.get('mqttEventHistory', (e, value) => {
+      mqttResult.value = e ? 'Geschiedenis kon niet worden gelezen.'
+        : JSON.stringify(value && value.schema === 1 ? value : { schema: 1, events: [] }, null, 2);
+    });
+  }
+  document.getElementById('mqtt-refresh').onclick = loadMqtt;
+  document.getElementById('mqtt-copy').onclick = async () => {
+    mqttResult.focus();
+    mqttResult.select();
+    try {
+      await navigator.clipboard.writeText(mqttResult.value);
+    } catch (_) {
+      Homey.alert('De tekst is geselecteerd. Kopieer deze handmatig met de kopieerfunctie van je apparaat.');
+    }
+  };
 
   function load() {
     Homey.get('diagnosticLog', (e, v) => {
@@ -46,6 +82,7 @@ function onHomeyReady(Homey) {
     });
 
   load();
+  loadMqtt();
 }
 </script>
 

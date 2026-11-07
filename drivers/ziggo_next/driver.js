@@ -1,10 +1,15 @@
 'use strict';
 const Homey = require('homey');
 const Ziggo = require('../../lib/ziggo');
+const { emit } = require('../../lib/auth');
 
 class ZiggoNextDriver extends Homey.Driver {
+  authDiagnostic(event, fields) {
+    emit((name, safe) => this.homey.app.recordDiag(`AUTH ${name} ${JSON.stringify(safe)}`), event, fields);
+  }
+
   async onInit() {
-    this.log('Ziggo Next-driver v0.0.23 gestart.');
+    this.log('Ziggo Next-driver v0.0.26 gestart.');
   }
 
   async onPair(session) {
@@ -30,12 +35,12 @@ class ZiggoNextDriver extends Homey.Driver {
         session: ziggoSession,
         config,
         cookies
-      } = await Ziggo.login(username, password);
+      } = await Ziggo.login(username, password, { diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
 
       this.homey.app.recordDiag('PAIR succesvol');
       
       const { devices, customer } =
-        await Ziggo.getDevices(config, ziggoSession, cookies);
+        await Ziggo.getDevices(config, ziggoSession, cookies, { diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
 
       if (devices.length !== 1) {
         throw new Error(
@@ -88,51 +93,54 @@ class ZiggoNextDriver extends Homey.Driver {
 
       this.log('Repair: opnieuw inloggen bij Ziggo...');
 
-      const {
-        session: ziggoSession,
-        config,
-        cookies
-      } = await Ziggo.login(username, password);
+      await device.repairSession(async () => {
+        const {
+          session: ziggoSession,
+          config,
+          cookies
+        } = await Ziggo.login(username, password, { diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
 
-      const { devices, customer } =
-        await Ziggo.getDevices(config, ziggoSession, cookies);
+        const { devices, customer } =
+          await Ziggo.getDevices(config, ziggoSession, cookies, { diagnostic: (event, fields) => this.authDiagnostic(event, fields) });
 
-      if (devices.length !== 1) {
-        throw new Error(
-          `Veiligheidsstop: verwacht precies 1 Mediabox, maar vond ${devices.length}.`
-        );
-      }
+        if (devices.length !== 1) {
+          throw new Error(
+            `Veiligheidsstop: verwacht precies 1 Mediabox, maar vond ${devices.length}.`
+          );
+        }
 
-      const d = devices[0];
+        const d = devices[0];
 
-      if (!d?.deviceId) {
-        throw new Error('Geen bruikbare device-ID gevonden.');
-      }
+        if (!d?.deviceId) {
+          throw new Error('Geen bruikbare device-ID gevonden.');
+        }
 
-      // Extra veiligheidscontrole:
-      // Repair mag niet per ongeluk een andere Mediabox aan dit
-      // bestaande Homey-apparaat koppelen.
-      if (d.deviceId !== device.getData().id) {
-        throw new Error(
-          'De gevonden Mediabox komt niet overeen met het bestaande Homey-apparaat.'
-        );
-      }
+        // Extra veiligheidscontrole:
+        // Repair mag niet per ongeluk een andere Mediabox aan dit
+        // bestaande Homey-apparaat koppelen.
+        if (d.deviceId !== device.getData().id) {
+          throw new Error(
+            'De gevonden Mediabox komt niet overeen met het bestaande Homey-apparaat.'
+          );
+        }
 
-      await device.persistSession({
-        username: ziggoSession.username || username,
-        householdId: ziggoSession.householdId,
-        accessToken: ziggoSession.accessToken,
-        refreshToken: ziggoSession.refreshToken,
-        refreshTokenExpiry: ziggoSession.refreshTokenExpiry || null,
-        hashedCustomerId: customer?.hashedCustomerId || null
-      }, cookies);
+        return { session: {
+          username: ziggoSession.username || username,
+          householdId: ziggoSession.householdId,
+          accessToken: ziggoSession.accessToken,
+          refreshToken: ziggoSession.refreshToken,
+          refreshTokenExpiry: ziggoSession.refreshTokenExpiry || null,
+          hashedCustomerId: customer?.hashedCustomerId || null
+        }, cookies };
+      });
 
       this.homey.app.recordDiag('REPAIR succesvol');
       
       // Oude MQTT-verbinding gebruikt mogelijk nog de oude sessie.
       // Bouw hem daarom opnieuw op met de zojuist opgeslagen sessie.
       await device.startStatusMonitor();
-      await device.setAvailable();
+      // Availability is restored by the authenticated subscription callback,
+      // after SUBACK; creating a client alone does not prove connectivity.
 
       this.log('Repair: Ziggo-verbinding succesvol hersteld.');
 
