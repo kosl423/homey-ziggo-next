@@ -88,7 +88,7 @@ function deviceHarness() {
     if(options?.onPublish?.()===false)return;
     calls.push(key);
   }};
-  const sandbox={module:{exports:{}},require:id=>id==='homey'?{Device}:id.includes('power-controller')?PowerController:id==='../../lib/auth'?Auth:ziggo,
+  const sandbox={module:{exports:{}},require:id=>id==='../../lib/ui'?require('../lib/ui'):id==='homey'?{Device}:id.includes('power-controller')?PowerController:id==='../../lib/auth'?Auth:ziggo,
     setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){}};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../drivers/ziggo_next/device.js'),'utf8'),sandbox);
   const d=new sandbox.module.exports();d.homey={app:{recordDiag:x=>logs.push(x),recordMqttEvent:(_,event,fields)=>mqttEvents.push({event,...fields})}};
@@ -146,7 +146,7 @@ test('remote status remains mirrored with no persistent desired-state enforcemen
 test('diagnostic writes are serialized and bounded to 250 entries',async()=>{
   const writes=[],pending=[],data={diagnosticLog:[]};let active=0,maxActive=0;
   class App {log(){}}
-  const sandbox={module:{exports:{}},require:()=>({App}),Promise,Date};
+  const sandbox={module:{exports:{}},require:id=>id.includes('diagnostic-compactor')?require('../lib/diagnostic-compactor'):({App}),Promise,Date};
   vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../app.js'),'utf8'),sandbox);
   const app=new sandbox.module.exports();app.homey={settings:{get:key=>data[key],set:async(key,value)=>{
     active++;maxActive=Math.max(maxActive,active);await Promise.resolve();data[key]=value;writes.push(value);active--;

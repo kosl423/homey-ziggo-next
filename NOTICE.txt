@@ -2,3 +2,16 @@
 https://github.com/jsiegenthaler/homebridge-eosstb
 
 This project implements the Ziggo NL authentication and set-top-box communication required for the Homey integration, with homebridge-eosstb used as a protocol reference. No source file from that project is bundled here.
+
+App icon: original television/play/connection SVG line drawing, created for this project and covered by its MIT license. It replaces the earlier official Ziggo wordmark icon. No endorsement by Ziggo is implied. See ASSETS.md for asset provenance and publication review.
+
+App Store lifestyle photograph: Curtis Adams / Pexels, photo #4044803.
+https://www.pexels.com/photo/television-set-on-the-living-room-4044803/
+Used under the Pexels License: https://www.pexels.com/license/
+Center-cropped and resized; no endorsement implied. This photograph is not licensed under the project's MIT license. See ASSETS.md for details.
+
+Device photograph: IMG_7724.jpg, personally taken by the project owner and selected for this project.
+On November 13, 2026, the project owner confirmed personally taking IMG_7724.jpg and permitted its use for the Homey App Store, including the selected edited product images. The original declaration is retained in the local submission dossier outside the app package. This permission records the planned App Store use; it does not transfer copyright, grant a blanket MIT license or authorise unrelated uses.
+AI-assisted background replacement, lighting adjustment and dust retouching; resized to Homey device formats. No official Ziggo product photograph was used in this edit. This photograph and its exports are not automatically licensed under the project's MIT license. No endorsement by Ziggo is implied. See ASSETS.md for provenance and publication review.
+
+The owner authorized publication of the v0.0.28 GitHub prerelease on November 15, 2026, including the selected edited device-photograph exports. This supplements the App Store-use permission above; the original photograph is not distributed and no blanket MIT license or third-party trademark/design rights are granted.

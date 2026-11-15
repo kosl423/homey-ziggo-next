@@ -1,0 +1,10 @@
+{
+  "0.0.28": {
+    "en": "Summarize routine authentication diagnostics in ten-minute windows, preserve errors and Power events separately, and improve the Next Mini device icon. Includes clearer initial status, corrected diagnostic clearing and English/Dutch Power errors from the preceding local candidate. Correct English navigation labels and localize button/unavailability errors. Distinguish pairing/Repair operation failures from screen-closing failures and avoid repeating completed operations.",
+    "nl": "Vat normale authenticatiediagnose per tien minuten samen, behoud fouten en Power-gebeurtenissen apart en verbeter het Next Mini-apparaaticoon. Inclusief duidelijkere beginstatus, hersteld diagnose wissen en Engelse/Nederlandse Power-fouten uit de vorige lokale kandidaat. Corrigeer Engelse navigatietitels en vertaal knop- en onbeschikbaarmeldingen. Onderscheid fouten bij koppelen/Repareren van fouten bij het sluiten van het scherm en voorkom herhaling van afgeronde handelingen."
+  },
+  "0.0.27": {
+    "en": "Clarify initial live status, fix diagnostic clearing and prepare translated views for App Store review. Local candidate; not submitted.",
+    "nl": "Verduidelijk de live beginstatus, herstel diagnose wissen en bereid vertaalde schermen voor op App Store-beoordeling. Lokale kandidaat; niet ingediend."
+  }
+}

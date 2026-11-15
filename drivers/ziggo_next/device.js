@@ -1,5 +1,6 @@
 'use strict';
 const Homey = require('homey');
+const { text, userError } = require('../../lib/ui');
 const Ziggo = require('../../lib/ziggo');
 const PowerController = require('../../lib/power-controller');
 const { AuthClient, SessionManager, AuthError, asAuthError, emit } = require('../../lib/auth');
@@ -53,7 +54,7 @@ class ZiggoNextDevice extends Homey.Device {
     // Native Homey power state. This is state-aware: never blindly toggle when
     // Ziggo already reports the requested state.
     this.registerCapabilityListener('onoff', async value => {
-      await this.power.request(value);
+      await this.runPowerRequest(() => this.power.request(value));
     });
 
     // Keep the proven raw Power button for now as a fallback/manual toggle.
@@ -61,35 +62,35 @@ class ZiggoNextDevice extends Homey.Device {
       await this.sendKey('Power');
     });
     this.registerCapabilityListener('ziggo_channel_up', async () => {
-      await this.sendKey('ChannelUp');
+      await this.runKeyRequest('ChannelUp');
     });
     this.registerCapabilityListener('ziggo_channel_down', async () => {
-      await this.sendKey('ChannelDown');
+      await this.runKeyRequest('ChannelDown');
     });
 
     // Numeric keys use the confirmed EOS KeyEvents "0" through "9".
     for (let digit = 0; digit <= 9; digit++) {
       this.registerCapabilityListener(`ziggo_digit_${digit}`, async () => {
-        await this.sendKey(String(digit));
+        await this.runKeyRequest(String(digit));
       });
     }
     this.registerCapabilityListener('ziggo_ok', async () => {
-      await this.sendKey('Enter');
+      await this.runKeyRequest('Enter');
     });
     this.registerCapabilityListener('ziggo_back', async () => {
-      await this.sendKey('Escape');
+      await this.runKeyRequest('Escape');
     });
     this.registerCapabilityListener('ziggo_nav_up', async () => {
-      await this.sendKey('ArrowUp');
+      await this.runKeyRequest('ArrowUp');
     });
     this.registerCapabilityListener('ziggo_nav_down', async () => {
-      await this.sendKey('ArrowDown');
+      await this.runKeyRequest('ArrowDown');
     });
     this.registerCapabilityListener('ziggo_nav_left', async () => {
-      await this.sendKey('ArrowLeft');
+      await this.runKeyRequest('ArrowLeft');
     });
     this.registerCapabilityListener('ziggo_nav_right', async () => {
-      await this.sendKey('ArrowRight');
+      await this.runKeyRequest('ArrowRight');
     });
 
     // Keep Homey's native on/off state synchronized with Ziggo's realtime status.
@@ -109,6 +110,20 @@ class ZiggoNextDevice extends Homey.Device {
         attempt: this.mqttReconnectAttempt || 0,
       });
     } catch (_) {} // Diagnostic failures must not change device behavior.
+  }
+
+  async runPowerRequest(request) {
+    // Invoke synchronously: reservation, ordering and cancellation remain owned
+    // by the controller. Translate only the error returned to Homey's UI/Flow.
+    try { return await request(); }
+    catch (error) { throw userError(this.homey, error); }
+  }
+
+  async runKeyRequest(key) {
+    // Localize only the result returned by a device control. The raw sendKey
+    // route and its callers in the channel Flow retain their existing behavior.
+    try { return await this.sendKey(key); }
+    catch (error) { throw userError(this.homey, error); }
   }
 
   getStoredSession() {
@@ -143,8 +158,12 @@ class ZiggoNextDevice extends Homey.Device {
     const unavailableStatus = ['connection.ready', 'connection.lost', 'status.initialCandidate',
       'initialization.waiting', 'initialization.cancelled', 'restore.uncertain', 'transition.failed'];
     if (unavailableStatus.includes(event) && typeof this.setWarning === 'function') {
-      const message = event === 'initialization.cancelled' ? fields.reason
-        : 'Powerstatus nog niet bevestigd. Power wacht op live status; er wordt niet blind getoggeld.';
+      const key = event === 'connection.lost' ? 'status.disconnected'
+        : event === 'restore.uncertain' ? 'status.uncertain'
+        : event === 'transition.failed' ? 'status.commandFailed'
+        : event === 'initialization.cancelled' ? (this.power?.connected ? 'status.expired' : 'status.disconnected')
+        : event === 'initialization.waiting' ? 'status.pending' : 'status.waiting';
+      const message = text(this.homey, key);
       this.warningQueue = this.warningQueue.then(() => {
         if (!this.deleted) return this.setWarning(message);
       }).catch(() => {});
@@ -188,7 +207,7 @@ class ZiggoNextDevice extends Homey.Device {
       this.authConnectionReady = false;
       this.authRecoveryEpoch = (this.authRecoveryEpoch || 0) + 1;
       const write = (this.authAvailabilityQueue || Promise.resolve()).then(() => {
-        if (!this.deleted) return this.setUnavailable(safe.message);
+        if (!this.deleted) return this.setUnavailable(userError(this.homey, safe).message);
       }).catch(() => this.authDiagnostic('auth.availability.failed', { phase: 'unavailable' }));
       this.authAvailabilityQueue = write;
       await write;
@@ -386,7 +405,7 @@ class ZiggoNextDevice extends Homey.Device {
   }
 
   async sendKey(w3cKey) {
-    if (w3cKey === 'Power') return this.power.toggle();
+    if (w3cKey === 'Power') return this.runPowerRequest(() => this.power.toggle());
     const config = await Ziggo.getConfig();
     const { session, mqttToken, cookies, refreshed } = await this.ensureSessionLocked(config);
     if (refreshed) {

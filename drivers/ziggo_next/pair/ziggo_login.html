@@ -1,50 +1,42 @@
 <!doctype html>
-<html>
-<head><meta charset="utf-8"></head>
-<body class="homey-widget-full">
-  <div class="homey-form-group">
-    <label class="homey-form-label" for="username">Ziggo-gebruikersnaam</label>
-    <input class="homey-form-input" id="username" type="email" autocomplete="username">
-  </div>
-  <div class="homey-form-group">
-    <label class="homey-form-label" for="password">Wachtwoord</label>
-    <input class="homey-form-input" id="password" type="password" autocomplete="current-password">
-  </div>
-  <p>Je wachtwoord wordt alleen voor deze koppeling gebruikt en niet opgeslagen. De Ziggo-sessietokens worden wel op Homey bewaard zodat de Mediabox later zonder opnieuw inloggen bediend kan worden.</p>
-  <button id="pair" class="homey-button-primary-full">Koppel mijn Ziggo Next Mini</button>
-  <p id="status"></p>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body class="homey-widget-full">
+<div class="homey-form-group"><label data-i18n="login.username" class="homey-form-label" for="username">Ziggo username</label><input class="homey-form-input" id="username" type="email" autocomplete="username"></div>
+<div class="homey-form-group"><label data-i18n="login.password" class="homey-form-label" for="password">Password</label><input class="homey-form-input" id="password" type="password" autocomplete="current-password"></div>
+<p data-i18n="pair.intro" >Your password is used only to sign in and is not stored. Session tokens and cookies are saved on Homey to maintain the connection. Exactly one assigned Mediabox is supported. After connecting, switch the Mini once with the Ziggo remote and wait for Homey to receive live status.</p><button id="pair" data-i18n="pair.button" class="homey-button-primary-full">Connect my Ziggo Next Mini</button><p id="status" role="status" aria-live="polite"></p>
 <script type="application/javascript">
-  Homey.setTitle('Ziggo Next Mini koppelen');
-
+  Homey.setTitle(Homey.__('pair.title'));
   var button = document.getElementById('pair');
   var status = document.getElementById('status');
-
-  button.addEventListener('click', function () {
-    var username = document.getElementById('username').value.trim();
-    var password = document.getElementById('password').value;
-
-    if (!username || !password) {
-      status.textContent = 'Vul je Ziggo-gebruikersnaam en wachtwoord in.';
-      return;
-    }
-
+  var created = false;
+  function finish() {
     button.disabled = true;
-    status.textContent = 'Inloggen bij Ziggo en Mediabox zoeken...';
-
-    Homey.emit('pair_ziggo', { username: username, password: password })
-      .then(function (device) {
-        status.textContent = 'Mediabox gevonden. Toevoegen aan Homey...';
-        return Homey.createDevice(device);
-      })
-      .then(function () {
-        status.textContent = 'Ziggo Next Mini is toegevoegd.';
-        return Homey.done();
-      })
-      .catch(function (err) {
-        status.textContent = 'Fout: ' + (err && err.message ? err.message : String(err));
+    status.textContent = Homey.__('pair.done');
+    return Promise.resolve().then(function () { return Homey.done(); })
+      .catch(function () {
+        status.textContent = Homey.__('pair.finishFailed');
+        button.textContent = Homey.__('pair.finish');
         button.disabled = false;
       });
+  }
+  button.addEventListener('click', function () {
+    if (button.disabled) return;
+    if (created) { finish(); return; }
+    var username = document.getElementById('username').value.trim();
+    var passwordInput = document.getElementById('password');
+    var password = passwordInput.value;
+    if (!username || !password) { status.textContent = Homey.__('login.required'); return; }
+    button.disabled = true;
+    status.textContent = Homey.__('pair.busy');
+    var adding = false;
+    Promise.resolve().then(function () { return Homey.emit('pair_ziggo', { username: username, password: password }); })
+      .then(function (device) { adding = true; status.textContent = Homey.__('pair.found'); return Homey.createDevice(device); })
+      .then(function () { created = true; passwordInput.value = ''; return finish(); })
+      .catch(function () {
+        passwordInput.value = '';
+        status.textContent = Homey.__(adding ? 'pair.addFailed' : 'pair.failed');
+        // Creation can have succeeded even when its response was lost. Do not
+        // repeat sign-in/add on this screen when creation is unconfirmed.
+        button.disabled = adding;
+      });
   });
-</script>
-</body>
-</html>
+</script></body></html>

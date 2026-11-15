@@ -1,0 +1,3 @@
+Make your Ziggo Mediabox Next Mini part of your daily routines with Homey Pro. Follow its power state when using the Ziggo remote and include viewing controls in your Flows, without an additional bridge. After a restart, the app waits for a live Mediabox status before allowing power commands.
+
+Requires Homey Pro with Homey 10 or newer, internet access and a Ziggo Netherlands account with exactly one assigned Mediabox. The Next Mini is the primary tested model; other Next models and multiple-box accounts have not been validated. Television power behavior also depends on your equipment and HDMI-CEC settings. This independent community integration is not an official Ziggo app, depends on Ziggo’s online services and does not support Homey Cloud.

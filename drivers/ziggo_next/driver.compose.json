@@ -1,4 +1,9 @@
 {
+  "images": {
+    "small": "/drivers/ziggo_next/assets/images/small.png",
+    "large": "/drivers/ziggo_next/assets/images/large.png",
+    "xlarge": "/drivers/ziggo_next/assets/images/xlarge.png"
+  },
   "name": {
     "en": "Ziggo Next Mini",
     "nl": "Ziggo Next Mini"

@@ -1,90 +1,54 @@
 <!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<script type="text/javascript" src="/homey.js" data-origin="settings"></script>
-</head>
-<body>
-
-<header class="homey-header">
-  <h1 class="homey-title">Ziggo Next diagnose</h1>
-  <p class="homey-subtitle">Diagnose-informatie voor de Ziggo Next-verbinding. Geen wachtwoorden of tokenwaarden worden getoond.</p>
-</header>
-
-<button id="refresh" class="homey-button-primary-full">Diagnose verversen</button>
-
-<textarea
-  id="result"
-  readonly
-  style="width:100%;height:55vh;box-sizing:border-box;margin-top:16px;padding:10px;font-family:monospace;white-space:pre;resize:vertical;"
-></textarea>
-
-<br>
-<button id="clear" class="homey-button-secondary-full">Diagnose wissen</button>
-
-<h2>MQTT-gebeurtenisgeschiedenis (concept v0.0.26)</h2>
-<p>De laatste 50 verbindingsgebeurtenissen, oudste eerst, met UTC-tijdstempels.
-Deze geschiedenis blijft bewaard bij een app-herstart en staat los van de 250 diagnoseregels.
-Nieuwe gebeurtenissen vervangen de oudste; er is geen bewaartermijn in dagen.
-Veel storingen kunnen daarom een nacht uit de geschiedenis verdringen.</p>
-<p>Run onderscheidt app-starts; device is een anoniem volgnummer binnen die run.
-Monitor telt monitorstarts, generation telt verbonden sessies en attempt telt pogingen sinds de laatste ready (eerste poging = 1).
-Ready betekent dat de status-subscription gereed is; live powerstatus kan nog ontbreken.
-Connection.restored betekent herstel na een eerder geregistreerd verlies binnen dezelfde app-run.</p>
-<button id="mqtt-refresh" class="homey-button-secondary-full">MQTT-geschiedenis verversen</button>
-<textarea id="mqtt-result" readonly aria-label="MQTT-gebeurtenisgeschiedenis als JSON"
-  style="width:100%;height:35vh;box-sizing:border-box;margin-top:16px;font-family:monospace;"></textarea>
-<button id="mqtt-copy" class="homey-button-secondary-full">MQTT-geschiedenis kopiëren (JSON)</button>
-<p>Alleen lezen en kopiëren: deze knoppen veranderen geen verbinding of instellingen.
-‘Diagnose wissen’ wist uitsluitend het gewone diagnoselog. Er is hier bewust geen MQTT-resetknop.
-Verwijderen van de app wist ook deze geschiedenis. Bij een crash of opslagfout kunnen recente gebeurtenissen ontbreken.
-Geen tokens, cookies, apparaat-ID's, topics, foutteksten of MQTT-payloads worden opgeslagen.</p>
-
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="/homey.js" data-origin="settings"></script>
+<style>textarea{width:100%;box-sizing:border-box;padding:10px;font-family:monospace;resize:vertical}p{line-height:1.5}</style></head><body>
+<header class="homey-header"><h1 data-i18n="settings.title" class="homey-title">Ziggo Next diagnostics</h1><p data-i18n="settings.intro" class="homey-subtitle">Inspect the connection and recent events. Review diagnostic data before sharing it.</p></header>
+<p data-i18n="settings.statusHelp" >After starting or reconnecting, Connected does not yet mean live power status is known. If the device warns that it is waiting for live status, switch the Mini once with the Ziggo remote and wait until Homey follows. A saved status alone never authorizes a Power command.</p>
+<h2 id="diagnostic-heading" data-i18n="settings.logTitle">Diagnostic log</h2>
+<p data-i18n="settings.diagRetention">Routine sign-in checks are summarized per ten minutes, with UTC start/end times and counts. Unexpected errors and Power events remain separate. The newest 250 entries are retained; a busy log can still cover less than a full night.</p>
+<button id="refresh" data-i18n="settings.refresh" class="homey-button-primary-full">Refresh diagnostics</button>
+<textarea id="result" readonly aria-labelledby="diagnostic-heading" style="height:35vh"></textarea>
+<button id="clear" data-i18n="settings.clear" class="homey-button-secondary-full">Clear diagnostics</button>
+<p data-i18n="settings.clearHelp">Clear the ordinary diagnostic log. New events may appear afterward. MQTT history and sign-in data are kept.</p>
+<h2 id="mqtt-heading" data-i18n="settings.mqttTitle" >MQTT connection history</h2><p data-i18n="settings.retention" >The newest 50 connection events across all devices are saved, oldest first, with UTC timestamps. They survive app restarts independently of the 250-line diagnostic log. New events replace the oldest; there is no expiry by age. Frequent failures can exhaust the history before a full night has passed.</p><details><summary data-i18n="settings.details">Technical event details</summary><p data-i18n="settings.fields" >Run distinguishes app starts; device is an anonymous number within a run. Monitor and generation distinguish connections. Attempt counts monitor starts and reconnect attempts since the last ready. Ready/restored means the subscription is ready; live power status may still be unknown. Restoration is recorded within the same device lifecycle.</p></details>
+<button id="mqtt-refresh" data-i18n="settings.mqttRefresh" class="homey-button-secondary-full">Refresh MQTT history</button>
+<textarea id="mqtt-result" readonly aria-labelledby="mqtt-heading" style="height:30vh"></textarea>
+<button id="mqtt-copy" data-i18n="settings.mqttCopy" class="homey-button-secondary-full">Copy MQTT history (JSON)</button>
+<p data-i18n="settings.privacy" >History refresh and copy only read data. Clear diagnostics does not clear MQTT history. There is no MQTT reset button. Removing the app removes its settings. A crash or storage error can lose recent events. MQTT history contains no tokens, cookies, device IDs, topics, raw error text or payloads.</p>
 <script>
 function onHomeyReady(Homey) {
-  Homey.ready();
-
+  const tr = key => Homey.__(key);
   const r = document.getElementById('result');
   const mqttResult = document.getElementById('mqtt-result');
-
+  const clear = document.getElementById('clear');
+  function load() {
+    Homey.get('diagnosticLog', (error, value) => {
+      r.value = error ? tr('settings.readFailed')
+        : Array.isArray(value) && value.length ? value.join('\n') : tr('settings.empty');
+    });
+  }
   function loadMqtt() {
-    Homey.get('mqttEventHistory', (e, value) => {
-      mqttResult.value = e ? 'Geschiedenis kon niet worden gelezen.'
+    Homey.get('mqttEventHistory', (error, value) => {
+      mqttResult.value = error ? tr('settings.mqttReadFailed')
         : JSON.stringify(value && value.schema === 1 ? value : { schema: 1, events: [] }, null, 2);
     });
   }
+  document.getElementById('refresh').onclick = load;
   document.getElementById('mqtt-refresh').onclick = loadMqtt;
   document.getElementById('mqtt-copy').onclick = async () => {
-    mqttResult.focus();
-    mqttResult.select();
-    try {
-      await navigator.clipboard.writeText(mqttResult.value);
-    } catch (_) {
-      Homey.alert('De tekst is geselecteerd. Kopieer deze handmatig met de kopieerfunctie van je apparaat.');
-    }
+    mqttResult.focus(); mqttResult.select();
+    try { await navigator.clipboard.writeText(mqttResult.value); }
+    catch (_) { Homey.alert(tr('settings.copyFallback')); }
   };
-
-  function load() {
-    Homey.get('diagnosticLog', (e, v) => {
-      r.value = e
-        ? 'Fout: ' + (e.message || e)
-        : (Array.isArray(v) ? v.join('\n') : 'Nog geen diagnose opgeslagen.');
-    });
-  }
-
-  document.getElementById('refresh').onclick = load;
-
-  document.getElementById('clear').onclick = () =>
-    Homey.set('diagnosticLog', [], e => {
-      if (e) Homey.alert(e.message || e);
+  clear.onclick = () => {
+    if (clear.disabled) return;
+    clear.disabled = true;
+    Homey.api('POST', '/diagnostics/clear', {}, (error, result) => {
+      clear.disabled = false;
+      if (error || result?.cleared !== true) Homey.alert(tr('settings.clearFailed'));
       else load();
     });
-
-  load();
-  loadMqtt();
+  };
+  load(); loadMqtt(); Homey.ready();
 }
-</script>
-
-</body>
-</html>
+</script></body></html>

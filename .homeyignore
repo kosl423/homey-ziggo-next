@@ -1,0 +1,9 @@
+test/
+README.md
+STORE-PREPARATION.md
+DEVELOPMENT-*.txt
+RELEASE-*.txt
+STATUSINITIALISATIE-*.txt
+
+# Keep preparation and historical reports out of the runtime archive.
+SECURITY-REVIEW.md

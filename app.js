@@ -1,16 +1,18 @@
 'use strict';
 const Homey = require('homey');
 const { MqttHistory } = require('./lib/mqtt-history');
+const { text, userError } = require('./lib/ui');
+const { DiagnosticCompactor } = require('./lib/diagnostic-compactor');
 
 class ZiggoNextApp extends Homey.App {
   async onInit() {
-    this.log('Ziggo Next v0.0.26 gestart.');
-    this.recordDiag('APP v0.0.26 gestart');
+    this.log('Ziggo Next v0.0.28 gestart.');
+    this.recordDiag('APP v0.0.28 gestart');
     const goToChannel = this.homey.flow.getActionCard('go_to_channel');
     goToChannel.registerRunListener(async args => {
       const channel = Number(args.channel);
-      if (!args.device) throw new Error('Geen Ziggo Next Mini geselecteerd.');
-      await args.device.goToChannel(channel);
+      if (!args.device) throw new Error(text(this.homey, 'errors.noDevice'));
+      try { await args.device.goToChannel(channel); } catch (error) { throw userError(this.homey, error); }
       return true;
     });
   }
@@ -21,7 +23,18 @@ class ZiggoNextApp extends Homey.App {
   }
 
   async onUninit() {
-    await this.mqttHistory?.flush();
+    await Promise.all([this.mqttHistory?.flush(), this.diagnosticWrite]);
+  }
+
+  clearDiagnostics() {
+    // Reset memory synchronously so messages accepted after this call use a fresh
+    // buffer. The clear itself follows older writes in the same serialized queue.
+    this.diagnosticLines = [];
+    this.diagnosticCompactor?.reset();
+    const write = (this.diagnosticWrite || Promise.resolve())
+      .then(() => this.homey.settings.set('diagnosticLog', []));
+    this.diagnosticWrite = write.catch(() => {});
+    return write;
   }
 
   recordDiag(message) {
@@ -31,7 +44,8 @@ class ZiggoNextApp extends Homey.App {
       this.diagnosticLines = Array.isArray(current) ? [...current] : [];
     }
     const lines = this.diagnosticLines;
-    lines.push(`${now} ${message}`);
+    if (!this.diagnosticCompactor) this.diagnosticCompactor = new DiagnosticCompactor();
+    this.diagnosticCompactor.append(lines, message, now);
     while (lines.length > 250) lines.shift();
     const snapshot = [...lines];
     this.diagnosticWrite = (this.diagnosticWrite || Promise.resolve())

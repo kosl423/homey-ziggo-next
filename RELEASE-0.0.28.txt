@@ -1,0 +1,32 @@
+Ziggo Next for Homey v0.0.28
+Experimental prerelease — November 15, 2026
+
+INSTALLATION
+App Store Test: https://homey.app/nl-nl/app/nl.koos.ziggonextpoc/test/
+After installing, separately add the box in Homey: Devices -> Add device -> Ziggo Next -> Ziggo Next Mini -> Connect; sign in to Ziggo there. No ChatGPT required. Switch once with the Ziggo remote and wait for live status.
+Requires Homey Pro, Homey 10+, internet and a Ziggo NL account with exactly one assigned Mediabox. Next Mini is the primary field-tested model; regular-Next v0.0.28 is not separately confirmed. Homey Cloud/multiple-box accounts are outside the validated scope.
+
+CHANGES SINCE v0.0.26
+- Compact routine authentication diagnostics into ten-minute UTC summaries; preserve separate errors/Power/status within 250 entries and the independent 50-event persistent MQTT history.
+- Correct diagnostic clearing through an authenticated API/shared write queue; reset summary counters without clearing MQTT history or session credentials.
+- Clearer live-status warnings and EN/NL controls/errors/pairing/Repair. Finish retries after successful pairing/Repair do not repeat that operation.
+- Original app/device icons, a more recognizable Mini outline and attributed photographs.
+- Reviewed dependency maintenance and pinned CLI 4.6.2; Node 24+ development tools, Node>=18 runtime declaration.
+
+CLI MIGRATION
+CLI/Store share an app ID, not parallel installs. A working CLI setup can remain in use. Direct same-version replacement with automatic preservation is untested; do not uninstall routinely.
+One clean transition required adding/signing in again and a new device ID. Ten Ziggo references in four retained Advanced Flows needed manual repair. Matching names do not reconnect old references; Flows may appear intact with missing devices. Record dependencies before choosing this route. One supervised Mini/TV ON/OFF/channel4 cycle passed afterward. This is not an automatic migration guarantee. See README for details and CLI upload-failure precautions.
+
+KNOWN LIMITATIONS
+Channel selection sends digits without checking readiness or tuning. Compared v0.0.23/v0.0.28 channel/key-transport/Power-controller code is identical. A regular-Next v0.0.23 user reports successful controls and daily connectivity, but later morning channel selection failed again. A12-second wait is not consistently sufficient; a proposed 30-second experiment has no reported result. v0.0.28 is not a demonstrated fix. Session recovery differs; authentication/transport causes cannot be ruled out without logs.
+No independent TV picture/sound measurement. Explicit network loss/recovery, complete EN/NL mobile/web/Repair/error-path checks and regular-Next v0.0.28 field tests remain open. Retention has no minimum-hour guarantee. Development-tool advisories remain documented.
+
+VALIDATION AND STATUS
+233 offline application tests and 12 isolated comparison tests pass. Source/build validation is recorded with this preparation. Next Mini field tests include a clean Store Test install/sign-in and a repaired-Flow ON/OFF/TV-follow/channel4 cycle. The November 15 health check retained 26h35m of history,158 watchdog successes and no later registered MQTT restart/reconnect since pairing. These are limited observations, not universal compatibility guarantees.
+Athom certification was requested with automatic Live publication disabled; no approval is claimed. This GitHub prerelease does not publish to Athom Live or change a running Homey app/Flows. See ASSETS.md/NOTICE.txt for separate photo permissions.
+
+https://github.com/kosl423/homey-ziggo-next
+https://community.homey.app/t/160299
+
+CURRENT SECURITY SNAPSHOT — November 15, 2026
+Production audit: zero known findings. Development tree: one low/five moderate package findings from the documented deepmerge/parseuri issues; no high/critical. No dependency changes in this publication step.

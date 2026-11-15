@@ -98,6 +98,7 @@ test('event arriving between write completion and finalizer is persisted without
 test('actual app stores history separately, preserves it when diagnosticLog is reset and flushes on shutdown', async () => {
   const h = harness();
   const box = { module: { exports: {} }, require: id => id === 'homey' ? { App: class {} }
+    : id.includes('diagnostic-compactor') ? require('../lib/diagnostic-compactor')
     : require('../lib/mqtt-history'), Date, Promise };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), box);
   const app = new box.module.exports(); app.homey = { settings: h.settings };
@@ -115,12 +116,12 @@ test('settings view refresh and copy only read MQTT history; diagnostic reset ta
     return elements.get(id);
   };
   const reads = [], writes = [], copies = [];
-  const homey = { ready() {}, alert() {}, get(key, cb) { reads.push(key); cb(null, key === KEY ? { schema: 1, events: [] } : []); },
-    set(key, value, cb) { writes.push(key); cb(null); } };
+  const homey = { ready() {}, alert() {}, __(key) { return key; }, get(key, cb) { reads.push(key); cb(null, key === KEY ? { schema: 1, events: [] } : []); },
+    api(method, path, body, cb) { writes.push(method + ' ' + path); cb(null, { cleared: true }); } };
   const box = { document: { getElementById: element }, navigator: { clipboard: { writeText: async text => copies.push(text) } } };
   vm.runInNewContext(html.match(/<script>\s*([\s\S]*?)<\/script>/)[1], box);
   box.onHomeyReady(homey); element('mqtt-refresh').onclick(); await element('mqtt-copy').onclick();
   assert.equal(reads.filter(key => key === KEY).length, 2); assert.equal(writes.length, 0);
   assert.equal(JSON.parse(copies[0]).schema, 1);
-  element('clear').onclick(); assert.deepEqual(writes, ['diagnosticLog']);
+  element('clear').onclick(); assert.deepEqual(writes, ['POST /diagnostics/clear']);
 });

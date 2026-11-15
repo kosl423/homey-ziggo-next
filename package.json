@@ -1,10 +1,10 @@
 {
   "name": "homey-ziggo-next",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "private": true,
   "main": "app.js",
   "scripts": {
-    "test": "node --test test/power-controller.test.js test/integration.test.js test/auth.test.js test/recovery.test.js test/migration.test.js test/mqtt-history.test.js"
+    "test": "node --test test/power-controller.test.js test/integration.test.js test/auth.test.js test/recovery.test.js test/migration.test.js test/mqtt-history.test.js test/readiness.test.js test/power-i18n.test.js test/diagnostic-compactor.test.js test/ui-review-regressions.test.js"
   },
   "engines": {
     "node": ">=18"
@@ -14,6 +14,21 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "homey": "^3.0.0"
+    "homey": "4.6.2"
+  },
+  "overrides": {
+    "ip-address": "10.7.4",
+    "homey": {
+      "sharp": "0.35.5",
+      "tmp": "0.2.7",
+      "body-parser": "1.20.9",
+      "qs": "6.16.2",
+      "dockerode": {
+        "uuid": "11.1.1"
+      },
+      "update-notifier": {
+        "package-json": "7.0.0"
+      }
+    }
   }
 }

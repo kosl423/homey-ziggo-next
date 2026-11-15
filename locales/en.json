@@ -1,1 +1,85 @@
-{}
+{
+  "auth": {
+    "server": "Ziggo is temporarily unavailable. Automatic recovery will be attempted.",
+    "network": "Ziggo cannot be reached. Automatic recovery will be attempted.",
+    "timeout": "The Ziggo request timed out. Automatic recovery will be attempted.",
+    "invalid_response": "Ziggo returned an unexpected response.",
+    "access_rejected": "The access token was not accepted.",
+    "refresh_rejected": "The Ziggo session is no longer valid. Use Repair to sign in again.",
+    "authorization_denied": "Ziggo denied this request.",
+    "refresh_uncertain": "The session refresh result is uncertain. The request will not be blindly repeated.",
+    "storage": "Session data could not be used safely. Automatic recovery will be attempted.",
+    "session_missing": "No usable session is available. Use Repair to sign in again.",
+    "stopped": "Session handling has stopped.",
+    "repair_busy": "Repair is already in progress.",
+    "session_conflict": "Conflicting session data was detected. Use Repair to sign in again."
+  },
+  "status": {
+    "waiting": "Connected, waiting for live status. Switch the Mini once with the Ziggo remote and wait until Homey follows. Power waits until a live initial status is known.",
+    "disconnected": "Restoring the status connection. Power is waiting for a reliable live status.",
+    "pending": "Waiting up to 10 seconds for live status. No Power command has been sent. Switch the Mini once with the Ziggo remote.",
+    "expired": "No live initial status arrived; this request was cancelled without sending Power. Switch the Mini with the Ziggo remote, wait for Homey to follow, then try again.",
+    "uncertain": "The previous Power result is uncertain. Wait for a live status update before sending another command.",
+    "commandFailed": "The Power command was not confirmed. Check the status connection and wait for a live status update."
+  },
+  "errors": {
+    "noDevice": "Select a Ziggo device.",
+    "commandFailed": "The command could not be completed. Check the Ziggo connection and try again after live status is available.",
+    "stopped": "The app is stopping. Try again after it has started.",
+    "invalidPower": "Invalid power state.",
+    "superseded": "This request was replaced by a request for the opposite state.",
+    "toggleBlocked": "Power is blocked while a command is pending or live status is unknown.",
+    "preparationTimeout": "Preparing the command took too long. Try again when the connection has recovered.",
+    "invalidChannel": "Enter a whole channel number between 1 and 9999."
+  },
+  "settings": {
+    "diagRetention": "Routine sign-in checks are summarized per ten minutes, with UTC start/end times and counts. Unexpected errors and Power events remain separate. The newest 250 entries are retained; a busy log can still cover less than a full night.",
+    "title": "Ziggo Next diagnostics",
+    "intro": "Inspect the connection and recent events. Review diagnostic data before sharing it.",
+    "statusHelp": "After starting or reconnecting, Connected does not yet mean live power status is known. If the device warns that it is waiting for live status, switch the Mini once with the Ziggo remote and wait until Homey follows. A saved status alone never authorizes a Power command.",
+    "refresh": "Refresh diagnostics",
+    "clear": "Clear diagnostics",
+    "clearHelp": "Clear the ordinary diagnostic log. New events may appear afterward. MQTT history and sign-in data are kept.",
+    "clearFailed": "Diagnostics could not be cleared. Try again.",
+    "readFailed": "Diagnostics could not be read.",
+    "empty": "No diagnostic entries saved.",
+    "mqttTitle": "MQTT connection history",
+    "retention": "The newest 50 connection events across all devices are saved, oldest first, with UTC timestamps. They survive app restarts independently of the 250-line diagnostic log. New events replace the oldest; there is no expiry by age. Frequent failures can exhaust the history before a full night has passed.",
+    "fields": "Run distinguishes app starts; device is an anonymous number within a run. Monitor and generation distinguish connections. Attempt counts monitor starts and reconnect attempts since the last ready. Ready/restored means the subscription is ready; live power status may still be unknown. Restoration is recorded within the same device lifecycle.",
+    "mqttRefresh": "Refresh MQTT history",
+    "mqttCopy": "Copy MQTT history (JSON)",
+    "copyFallback": "The text is selected. Use your device’s copy function.",
+    "mqttReadFailed": "MQTT history could not be read.",
+    "privacy": "History refresh and copy only read data. Clear diagnostics does not clear MQTT history. There is no MQTT reset button. Removing the app removes its settings. A crash or storage error can lose recent events. MQTT history contains no tokens, cookies, device IDs, topics, raw error text or payloads.",
+    "logTitle": "Diagnostic log",
+    "details": "Technical event details"
+  },
+  "login": {
+    "username": "Ziggo username",
+    "password": "Password",
+    "required": "Enter your Ziggo username and password.",
+    "failed": "Sign-in or Mediabox verification failed. Check your credentials and connection, and make sure exactly one Mediabox is assigned to the account. Repair must use the account of the existing Mediabox."
+  },
+  "pair": {
+    "title": "Connect Ziggo Next Mini",
+    "intro": "Your password is used only to sign in and is not stored. Session tokens and cookies are saved on Homey to maintain the connection. Exactly one assigned Mediabox is supported. After connecting, switch the Mini once with the Ziggo remote and wait for Homey to receive live status.",
+    "button": "Connect my Ziggo Next Mini",
+    "busy": "Signing in and finding your Mediabox…",
+    "found": "Mediabox found. Adding it to Homey…",
+    "done": "Mediabox added. Wait for live status before using Power.",
+    "failed": "Sign-in or Mediabox verification failed. Check your credentials and connection, and make sure exactly one Mediabox is assigned to the account.",
+    "addFailed": "Adding the Mediabox could not be confirmed. Close this screen and check your Homey devices before trying to add it again.",
+    "finish": "Finish",
+    "finishFailed": "The Mediabox was added, but this screen could not close. Choose Finish to retry closing it; the Mediabox will not be added again."
+  },
+  "repair": {
+    "title": "Repair Ziggo Next Mini",
+    "intro": "Sign in again to restore this Mediabox session. Your password is not stored. The discovered Mediabox must match the existing device. After repair, wait for live status; use the Ziggo remote once if necessary.",
+    "button": "Restore Ziggo connection",
+    "busy": "Signing in and restoring the connection…",
+    "done": "Connection restored. Wait for live status before using Power.",
+    "failed": "Restoring the connection could not be confirmed. Check your credentials and connection, and use the account of the existing Mediabox.",
+    "finish": "Finish",
+    "finishFailed": "The connection was restored, but this screen could not close. Choose Finish to retry closing it; sign-in and restoration will not be repeated."
+  }
+}

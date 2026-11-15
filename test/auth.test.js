@@ -239,7 +239,7 @@ function deviceHarness(h) {
   };
   class Clock extends Date { static now() { return h.now(); } }
   const math = Object.create(Math); math.random = () => 0.5;
-  const box = { module: { exports: {} }, require: id => id === 'homey' ? { Device } : id === '../../lib/ziggo' ? ziggo
+  const box = { module: { exports: {} }, require: id => id === '../../lib/ui' ? require('../lib/ui') : id === 'homey' ? { Device } : id === '../../lib/ziggo' ? ziggo
     : id === '../../lib/auth' ? require('../lib/auth') : id === '../../lib/power-controller' ? class {} : (() => { throw Error('Forbidden import'); })(),
     Date: Clock, Math: math, setTimeout: h.timerApi.setTimeout, clearTimeout: h.timerApi.clearTimeout,
     clearInterval() {},
@@ -483,17 +483,62 @@ test('Repair handler preserves device identity checks and commits the new sessio
   }
 });
 
-test('protected v0.0.23 Power controller, Flow definitions and capabilities retain exact hashes', () => {
+test('protected behavior retains its hashes except documented UI wrappers and image metadata', () => {
   const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'protected-v0.0.23.json'), 'utf8').replace(/^\uFEFF/, ''));
   for (const [file, expected] of Object.entries(fixture.files)) {
-    const actual = createHash('sha256').update(fs.readFileSync(path.join(__dirname, '..', file))).digest('hex').toUpperCase();
+    let bytes = fs.readFileSync(path.join(__dirname, '..', file));
+    const navigationTitles = {
+      'ziggo_nav_up.json': ['Up', 'Omhoog'], 'ziggo_nav_down.json': ['Down', 'Omlaag'],
+      'ziggo_nav_left.json': ['Left', 'Links'], 'ziggo_nav_right.json': ['Right', 'Rechts'],
+    };
+    if (file.startsWith('.homeycompose/capabilities/') && navigationTitles[path.basename(file)]) {
+      const [english, previous] = navigationTitles[path.basename(file)];
+      const source = bytes.toString('utf8'), literal = '"en": "' + english + '"';
+      assert.equal(source.split(literal).length, 2, file + ': exactly one English display-title change');
+      assert.equal(JSON.parse(source).title.nl, previous);
+      // Restore only this reviewed label for the original immutable fixture hash.
+      bytes = Buffer.from(source.replace(literal, '"en": "' + previous + '"'));
+    }
+    if (file === 'drivers/ziggo_next/driver.compose.json') {
+      const source = bytes.toString('utf8');
+      const images = { small: '/drivers/ziggo_next/assets/images/small.png',
+        large: '/drivers/ziggo_next/assets/images/large.png', xlarge: '/drivers/ziggo_next/assets/images/xlarge.png' };
+      assert.deepEqual(JSON.parse(source).images, images);
+      const newline = source.match(/^\{(\r?\n)/)[1];
+      const imageBlock = JSON.stringify({ images }, null, 2).slice(2,-2).replaceAll('\n',newline) + ',' + newline;
+      assert.ok(source.startsWith('{' + newline + imageBlock));
+      // Remove only the added image property; the original driver definition,
+      // including capabilities and pairing/Repair routes, must remain byte-exact.
+      bytes = Buffer.from(source.replace(imageBlock,''));
+    }
+    const actual = createHash('sha256').update(bytes).digest('hex').toUpperCase();
     assert.equal(actual, expected, file);
   }
   for (const [name, section] of Object.entries(fixture.segments)) {
     const text = fs.readFileSync(path.join(__dirname, '..', section.file), 'utf8');
     const start = text.indexOf(section.start), end = text.indexOf(section.end, start);
     assert.ok(start >= 0 && end > start, name);
-    const hash = createHash('sha256').update(text.slice(start, end)).digest('hex').toUpperCase();
+    let protectedText = text.slice(start, end);
+    if (name === 'powerAndKeyListeners') {
+      for (const key of ["'ChannelUp'", "'ChannelDown'", 'String(digit)', "'Enter'", "'Escape'",
+        "'ArrowUp'", "'ArrowDown'", "'ArrowLeft'", "'ArrowRight'"]) {
+        const localized = 'await this.runKeyRequest(' + key + ');';
+        assert.equal(protectedText.split(localized).length, 2, name + ': exactly one wrapper for ' + key);
+        protectedText = protectedText.replace(localized, 'await this.sendKey(' + key + ');');
+      }
+    }
+    const uiWrappers = {
+      powerAndKeyListeners: ['await this.runPowerRequest(() => this.power.request(value));', 'await this.power.request(value);'],
+      channelFlowsAndKeyRouting: ["if (w3cKey === 'Power') return this.runPowerRequest(() => this.power.toggle());", "if (w3cKey === 'Power') return this.power.toggle();"],
+    };
+    if (uiWrappers[name]) {
+      const [localized, original] = uiWrappers[name];
+      assert.equal(protectedText.split(localized).length, 2, name + ': exactly one error wrapper');
+      protectedText = protectedText.replace(localized, original);
+    }
+    // Preserve the original reference fixture. No other change in these sections
+    // is permitted; behavioral tests separately exercise the translated routes.
+    const hash = createHash('sha256').update(protectedText).digest('hex').toUpperCase();
     assert.equal(hash, section.sha256, name);
   }
 });

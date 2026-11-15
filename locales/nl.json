@@ -1,1 +1,85 @@
-{}
+{
+  "auth": {
+    "server": "Ziggo is tijdelijk niet beschikbaar. Automatisch herstel wordt geprobeerd.",
+    "network": "Ziggo is niet bereikbaar. Automatisch herstel wordt geprobeerd.",
+    "timeout": "De Ziggo-aanvraag duurde te lang. Automatisch herstel wordt geprobeerd.",
+    "invalid_response": "Ziggo gaf een onverwacht antwoord.",
+    "access_rejected": "Het toegangstoken is niet geaccepteerd.",
+    "refresh_rejected": "De Ziggo-sessie is ongeldig. Gebruik Repareren om opnieuw aan te melden.",
+    "authorization_denied": "Ziggo heeft deze aanvraag geweigerd.",
+    "refresh_uncertain": "De uitkomst van de sessievernieuwing is onzeker. De aanvraag wordt niet blind herhaald.",
+    "storage": "Sessiegegevens konden niet veilig worden gebruikt. Automatisch herstel wordt geprobeerd.",
+    "session_missing": "Geen bruikbare sessie beschikbaar. Gebruik Repareren om opnieuw aan te melden.",
+    "stopped": "De sessieafhandeling is gestopt.",
+    "repair_busy": "Repareren is al bezig.",
+    "session_conflict": "Tegenstrijdige sessiegegevens gevonden. Gebruik Repareren om opnieuw aan te melden."
+  },
+  "status": {
+    "waiting": "Verbonden, wacht op live status. Schakel de Mini één keer met de Ziggo-afstandsbediening en wacht totdat Homey volgt. Power wordt pas verstuurd als een actuele beginstatus bekend is.",
+    "disconnected": "Statusverbinding wordt hersteld. Power wacht op een betrouwbare live status.",
+    "pending": "Wacht maximaal 10 seconden op live status. Er is geen Power-opdracht verstuurd. Schakel de Mini één keer met de Ziggo-afstandsbediening.",
+    "expired": "Geen live beginstatus ontvangen; dit verzoek is geannuleerd zonder Power te versturen. Schakel de Mini met de Ziggo-afstandsbediening, wacht totdat Homey volgt en probeer opnieuw.",
+    "uncertain": "De uitkomst van de vorige Power-opdracht is onzeker. Wacht op een live statusupdate voordat je opnieuw bedient.",
+    "commandFailed": "De Power-opdracht is niet bevestigd. Controleer de statusverbinding en wacht op een live statusupdate."
+  },
+  "errors": {
+    "noDevice": "Selecteer een Ziggo-apparaat.",
+    "commandFailed": "De opdracht kon niet worden voltooid. Controleer de Ziggo-verbinding en probeer opnieuw zodra live status beschikbaar is.",
+    "stopped": "De app stopt. Probeer opnieuw nadat deze is gestart.",
+    "invalidPower": "Ongeldige aan/uitstatus.",
+    "superseded": "Dit verzoek is vervangen door een verzoek voor de tegengestelde status.",
+    "toggleBlocked": "Power is geblokkeerd zolang een opdracht loopt of live status onbekend is.",
+    "preparationTimeout": "Voorbereiden van de opdracht duurde te lang. Probeer opnieuw als de verbinding is hersteld.",
+    "invalidChannel": "Voer een geheel zendernummer tussen 1 en 9999 in."
+  },
+  "settings": {
+    "diagRetention": "Normale aanmeldcontroles worden per tien minuten samengevat, met begin/eindtijd in UTC en aantallen. Onverwachte fouten en Power-gebeurtenissen blijven apart staan. De nieuwste 250 regels worden bewaard; bij veel activiteit kan een hele nacht alsnog niet passen.",
+    "title": "Ziggo Next diagnose",
+    "intro": "Bekijk de verbinding en recente gebeurtenissen. Controleer diagnosegegevens voordat je ze deelt.",
+    "statusHelp": "Na opstarten of opnieuw verbinden betekent Verbonden nog niet dat live powerstatus bekend is. Waarschuwt het apparaat dat het op live status wacht? Schakel de Mini dan één keer met de Ziggo-afstandsbediening en wacht totdat Homey volgt. Alleen een opgeslagen status is nooit toestemming voor een Power-opdracht.",
+    "refresh": "Diagnose verversen",
+    "clear": "Diagnose wissen",
+    "clearHelp": "Wis het gewone diagnoselog. Nieuwe gebeurtenissen kunnen daarna verschijnen. MQTT-geschiedenis en aanmeldgegevens blijven bewaard.",
+    "clearFailed": "De diagnose kon niet worden gewist. Probeer opnieuw.",
+    "readFailed": "De diagnose kon niet worden gelezen.",
+    "empty": "Nog geen diagnose opgeslagen.",
+    "mqttTitle": "MQTT-verbindingsgeschiedenis",
+    "retention": "De nieuwste 50 verbindingsgebeurtenissen van alle apparaten worden bewaard, oudste eerst, met UTC-tijdstempels. Ze blijven behouden na een app-herstart, los van het diagnoselog van 250 regels. Nieuwe gebeurtenissen vervangen de oudste; er is geen vervaldatum. Bij veel storingen kan minder dan een hele nacht bewaard blijven.",
+    "fields": "Run onderscheidt app-starts; device is een anoniem nummer binnen die run. Monitor en generation onderscheiden verbindingen. Attempt telt monitorstarts en reconnectpogingen sinds de laatste ready. Ready/restored betekent dat de subscription gereed is; live powerstatus kan nog onbekend zijn. Herstel wordt binnen dezelfde apparaatlevensduur vastgelegd.",
+    "mqttRefresh": "MQTT-geschiedenis verversen",
+    "mqttCopy": "MQTT-geschiedenis kopiëren (JSON)",
+    "copyFallback": "De tekst is geselecteerd. Gebruik de kopieerfunctie van je apparaat.",
+    "mqttReadFailed": "De MQTT-geschiedenis kon niet worden gelezen.",
+    "privacy": "Geschiedenis verversen en kopiëren lezen alleen gegevens. Diagnose wissen wist de MQTT-geschiedenis niet. Er is geen MQTT-resetknop. Verwijderen van de app verwijdert de instellingen. Bij een crash of opslagfout kunnen recente gebeurtenissen ontbreken. De MQTT-geschiedenis bevat geen tokens, cookies, apparaat-ID’s, topics, ruwe foutteksten of payloads.",
+    "logTitle": "Diagnoselog",
+    "details": "Technische gebeurtenisdetails"
+  },
+  "login": {
+    "username": "Ziggo-gebruikersnaam",
+    "password": "Wachtwoord",
+    "required": "Vul je Ziggo-gebruikersnaam en wachtwoord in.",
+    "failed": "Aanmelden of Mediabox-controle is mislukt. Controleer je gegevens en verbinding en zorg dat precies één Mediabox aan het account is toegewezen. Gebruik bij Repareren het account van de bestaande Mediabox."
+  },
+  "pair": {
+    "title": "Ziggo Next Mini koppelen",
+    "intro": "Je wachtwoord wordt alleen gebruikt om aan te melden en wordt niet opgeslagen. Sessietokens en cookies worden op Homey bewaard om de verbinding te onderhouden. Precies één toegewezen Mediabox wordt ondersteund. Schakel na koppelen de Mini één keer met de Ziggo-afstandsbediening en wacht op live status in Homey.",
+    "button": "Koppel mijn Ziggo Next Mini",
+    "busy": "Aanmelden en Mediabox zoeken…",
+    "found": "Mediabox gevonden. Toevoegen aan Homey…",
+    "done": "Mediabox toegevoegd. Wacht op live status voordat je Power gebruikt.",
+    "failed": "Aanmelden of Mediabox-controle is mislukt. Controleer je gegevens en verbinding en zorg dat precies één Mediabox aan het account is toegewezen.",
+    "addFailed": "Toevoegen van de Mediabox kon niet worden bevestigd. Sluit dit scherm en controleer je Homey-apparaten voordat je opnieuw probeert toe te voegen.",
+    "finish": "Afronden",
+    "finishFailed": "De Mediabox is toegevoegd, maar dit scherm kon niet sluiten. Kies Afronden om opnieuw te sluiten; de Mediabox wordt niet opnieuw toegevoegd."
+  },
+  "repair": {
+    "title": "Ziggo Next Mini repareren",
+    "intro": "Meld opnieuw aan om de sessie van deze Mediabox te herstellen. Je wachtwoord wordt niet opgeslagen. De gevonden Mediabox moet overeenkomen met het bestaande apparaat. Wacht na reparatie op live status; gebruik zo nodig één keer de Ziggo-afstandsbediening.",
+    "button": "Ziggo-verbinding herstellen",
+    "busy": "Aanmelden en verbinding herstellen…",
+    "done": "Verbinding hersteld. Wacht op live status voordat je Power gebruikt.",
+    "failed": "Herstellen van de verbinding kon niet worden bevestigd. Controleer je gegevens en verbinding en gebruik het account van de bestaande Mediabox.",
+    "finish": "Afronden",
+    "finishFailed": "De verbinding is hersteld, maar dit scherm kon niet sluiten. Kies Afronden om opnieuw te sluiten; aanmelden en herstellen worden niet herhaald."
+  }
+}

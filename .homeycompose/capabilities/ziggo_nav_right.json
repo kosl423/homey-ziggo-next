@@ -1,7 +1,7 @@
 {
   "type": "boolean",
   "title": {
-    "en": "Rechts",
+    "en": "Right",
     "nl": "Rechts"
   },
   "uiComponent": "button",

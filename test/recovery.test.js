@@ -116,7 +116,7 @@ test('real Repair handler retains Mediabox identity check even with damaged sess
     const h = harness(); h.data[STORE_KEY] = { schema: 99 }; const manager = h.manager(); let handler, reconnects = 0;
     const device = { repairSession: fn => manager.repair(fn), getData: () => ({ id: 'same-box' }), startStatusMonitor: async () => { reconnects++; assert.equal(h.data[STORE_KEY].session.accessToken, repaired.accessToken); } };
     const ziggo = { login: async () => ({ session: repaired, config: {}, cookies: '' }), getDevices: async () => ({ devices: [{ deviceId: matching ? 'same-box' : 'other-box' }], customer: {} }) };
-    const box = { module: { exports: {} }, require: id => id === 'homey' ? { Driver: class { log() {} } } : id === '../../lib/ziggo' ? ziggo : require('../lib/auth') };
+    const box = { module: { exports: {} }, require: id => id === '../../lib/ui' ? require('../lib/ui') : id === 'homey' ? { Driver: class { log() {} } } : id === '../../lib/ziggo' ? ziggo : require('../lib/auth') };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../drivers/ziggo_next/driver.js'), 'utf8'), box);
     const driver = new box.module.exports(); driver.homey = { app: { recordDiag() {} } };
     await driver.onRepair({ setHandler: (_, fn) => { handler = fn; } }, device);

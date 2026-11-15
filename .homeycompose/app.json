@@ -1,6 +1,6 @@
 {
   "id": "nl.koos.ziggonextpoc",
-  "version": "0.0.26",
+  "version": "0.0.28",
   "compatibility": ">=10.0.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -12,12 +12,47 @@
     "nl": "Ziggo Next"
   },
   "description": {
-    "en": "Community integration for Ziggo Next and Next Mini on Homey.",
-    "nl": "Community-integratie voor Ziggo Next en Next Mini op Homey."
+    "en": "Bring your television routine into your Flows.",
+    "nl": "Verbind je televisieroutine met je Flows."
   },
   "category": "video",
   "brandColor": "#F48B00",
   "author": {
     "name": "Koos Slachter"
+  },
+  "api": {
+    "clearDiagnostics": {
+      "method": "POST",
+      "path": "/diagnostics/clear",
+      "public": false
+    }
+  },
+  "homeyCommunityTopicId": 160299,
+  "bugs": {
+    "url": "https://github.com/kosl423/homey-ziggo-next/issues"
+  },
+  "source": "https://github.com/kosl423/homey-ziggo-next",
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "support": "https://community.homey.app/t/app-pro-ziggo-next-next-mini-community-integratie-voor-homey/160299",
+  "homepage": "https://github.com/kosl423/homey-ziggo-next",
+  "tags": {
+    "en": [
+      "Ziggo",
+      "Next",
+      "Next Mini",
+      "mediabox",
+      "television"
+    ],
+    "nl": [
+      "Ziggo",
+      "Next",
+      "Next Mini",
+      "mediabox",
+      "televisie"
+    ]
   }
 }
